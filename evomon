@@ -1,231 +1,183 @@
--- EVOMON ROBLOX - FIX SCRIPT NOT WORKING
--- Nguyên nhân: Evomon không phải là monster, chúng là các model con trong workspace
--- Fix: Tìm kiếm Evomon theo đúng cấu trúc của game
+-- FLY SCRIPT - CÓ THỂ TÙY CHỈNH TỐC ĐỘ
+-- Dành cho DeltaX VNG
+-- Phím tắt: F để bật/tắt Fly, WASD để di chuyển, Space lên, Shift xuống
 
 local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local replicatedStorage = game:GetService("ReplicatedStorage")
-local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local camera = workspace.CurrentCamera
 
--- ========== DEBUG LOG ==========
-local function DebugLog(msg)
-    print("[DeltaX-DEBUG] " .. tostring(msg))
-end
+-- ========== CẤU HÌNH ==========
+local CONFIG = {
+    FlySpeed = 50,           -- Tốc độ di chuyển ngang (có thể thay đổi)
+    FlySpeedUp = 40,         -- Tốc độ lên/xuống
+    FlySmoothness = 0.85,    -- Độ mượt (0.1 - 1.0, càng cao càng trơn)
+    DefaultSpeed = 50,       -- Tốc độ mặc định khi bật
+    MinSpeed = 5,            -- Tốc độ tối thiểu
+    MaxSpeed = 500,          -- Tốc độ tối đa
+    StepSize = 5,            -- Bước tăng/giảm tốc độ
+}
 
-DebugLog("Script started")
+-- ========== BIẾN TRẠNG THÁI ==========
+local flying = false
+local currentSpeed = CONFIG.DefaultSpeed
+local bodyVelocity = nil
+local bodyGyro = nil
+local character = nil
+local humanoid = nil
+local rootPart = nil
 
--- ========== XÓA GUI CŨ ==========
-local oldGui = playerGui:FindFirstChild("EvomonMenu")
+-- ========== TẠO GUI TÙY CHỈNH ==========
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Xóa GUI cũ
+local oldGui = playerGui:FindFirstChild("FlyMenu")
 if oldGui then oldGui:Destroy() end
 
--- ========== TẠO GUI ==========
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "EvomonMenu"
+screenGui.Name = "FlyMenu"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
+-- Frame chính
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 420, 0, 580)
-mainFrame.Position = UDim2.new(0.5, -210, 0.5, -290)
-mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
-mainFrame.BackgroundTransparency = 0.05
+mainFrame.Size = UDim2.new(0, 280, 0, 180)
+mainFrame.Position = UDim2.new(0.5, -140, 0.85, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 40)
+mainFrame.BackgroundTransparency = 0.15
 mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.fromRGB(255, 100, 50)
+mainFrame.BorderColor3 = Color3.fromRGB(0, 200, 255)
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
--- Title
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 45)
-titleBar.BackgroundColor3 = Color3.fromRGB(40, 30, 50)
-titleBar.BorderSizePixel = 1
-titleBar.BorderColor3 = Color3.fromRGB(255, 100, 50)
-titleBar.Parent = mainFrame
+-- Tiêu đề
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+title.BorderSizePixel = 1
+title.BorderColor3 = Color3.fromRGB(0, 200, 255)
+title.Text = "FLY CONTROL"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = mainFrame
 
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -40, 1, 0)
-titleLabel.Position = UDim2.new(0, 10, 0, 0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "EVOMON FIXED - DELTAX"
-titleLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
-titleLabel.TextScaled = true
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.Parent = titleBar
+-- Thanh trượt tốc độ
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0.6, 0, 0, 30)
+speedLabel.Position = UDim2.new(0, 10, 0, 40)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: " .. currentSpeed
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedLabel.Parent = mainFrame
 
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 35, 1, -8)
-closeBtn.Position = UDim2.new(1, -40, 0, 4)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.TextScaled = true
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.Parent = titleBar
+local speedSlider = Instance.new("TextBox")
+speedSlider.Size = UDim2.new(0.3, 0, 0, 30)
+speedSlider.Position = UDim2.new(0.7, -10, 0, 40)
+speedSlider.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
+speedSlider.BorderSizePixel = 1
+speedSlider.BorderColor3 = Color3.fromRGB(0, 200, 255)
+speedSlider.Text = tostring(currentSpeed)
+speedSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedSlider.TextScaled = true
+speedSlider.Font = Enum.Font.Gotham
+speedSlider.Parent = mainFrame
 
-local contentFrame = Instance.new("Frame")
-contentFrame.Size = UDim2.new(1, -20, 1, -75)
-contentFrame.Position = UDim2.new(0, 10, 0, 55)
-contentFrame.BackgroundTransparency = 1
-contentFrame.Parent = mainFrame
+speedSlider.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local newSpeed = tonumber(speedSlider.Text)
+        if newSpeed then
+            newSpeed = math.clamp(newSpeed, CONFIG.MinSpeed, CONFIG.MaxSpeed)
+            currentSpeed = newSpeed
+            CONFIG.FlySpeed = newSpeed
+            speedSlider.Text = tostring(currentSpeed)
+            speedLabel.Text = "Speed: " .. currentSpeed
+            UpdateLog("Speed set to: " .. currentSpeed)
+        else
+            speedSlider.Text = tostring(currentSpeed)
+        end
+    end
+end)
 
--- DEBUG LOG AREA
-local logFrame = Instance.new("Frame")
-logFrame.Size = UDim2.new(1, 0, 0, 120)
-logFrame.Position = UDim2.new(0, 0, 0, 350)
-logFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
-logFrame.BorderSizePixel = 1
-logFrame.BorderColor3 = Color3.fromRGB(100, 100, 200)
-logFrame.Parent = contentFrame
+-- Nút tăng/giảm tốc độ
+local decBtn = Instance.new("TextButton")
+decBtn.Size = UDim2.new(0, 35, 0, 30)
+decBtn.Position = UDim2.new(0, 10, 0, 80)
+decBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+decBtn.Text = "-"
+decBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+decBtn.TextScaled = true
+decBtn.Font = Enum.Font.GothamBold
+decBtn.BorderSizePixel = 1
+decBtn.BorderColor3 = Color3.fromRGB(200, 100, 100)
+decBtn.Parent = mainFrame
 
-local logLabel = Instance.new("TextLabel")
-logLabel.Size = UDim2.new(1, -10, 1, -10)
-logLabel.Position = UDim2.new(0, 5, 0, 5)
-logLabel.BackgroundTransparency = 1
-logLabel.Text = "Ready..."
-logLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
-logLabel.TextScaled = true
-logLabel.TextXAlignment = Enum.TextXAlignment.Left
-logLabel.TextYAlignment = Enum.TextYAlignment.Top
-logLabel.Font = Enum.Font.Code
-logLabel.Parent = logFrame
+decBtn.MouseButton1Click:Connect(function()
+    currentSpeed = math.max(CONFIG.MinSpeed, currentSpeed - CONFIG.StepSize)
+    CONFIG.FlySpeed = currentSpeed
+    speedLabel.Text = "Speed: " .. currentSpeed
+    speedSlider.Text = tostring(currentSpeed)
+    UpdateLog("Speed decreased to: " .. currentSpeed)
+end)
 
+local speedDisplay = Instance.new("TextLabel")
+speedDisplay.Size = UDim2.new(0.5, 0, 0, 30)
+speedDisplay.Position = UDim2.new(0.15, 0, 0, 80)
+speedDisplay.BackgroundTransparency = 1
+speedDisplay.Text = tostring(currentSpeed)
+speedDisplay.TextColor3 = Color3.fromRGB(255, 200, 100)
+speedDisplay.TextScaled = true
+speedDisplay.Font = Enum.Font.GothamBold
+speedDisplay.Parent = mainFrame
+
+local incBtn = Instance.new("TextButton")
+incBtn.Size = UDim2.new(0, 35, 0, 30)
+incBtn.Position = UDim2.new(1, -45, 0, 80)
+incBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+incBtn.Text = "+"
+incBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+incBtn.TextScaled = true
+incBtn.Font = Enum.Font.GothamBold
+incBtn.BorderSizePixel = 1
+incBtn.BorderColor3 = Color3.fromRGB(100, 200, 100)
+incBtn.Parent = mainFrame
+
+incBtn.MouseButton1Click:Connect(function()
+    currentSpeed = math.min(CONFIG.MaxSpeed, currentSpeed + CONFIG.StepSize)
+    CONFIG.FlySpeed = currentSpeed
+    speedLabel.Text = "Speed: " .. currentSpeed
+    speedSlider.Text = tostring(currentSpeed)
+    speedDisplay.Text = tostring(currentSpeed)
+    UpdateLog("Speed increased to: " .. currentSpeed)
+end)
+
+-- Nút bật/tắt Fly
+local flyBtn = Instance.new("TextButton")
+flyBtn.Size = UDim2.new(0.4, 0, 0, 35)
+flyBtn.Position = UDim2.new(0.3, 0, 0, 130)
+flyBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
+flyBtn.Text = "FLY: OFF"
+flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyBtn.TextScaled = true
+flyBtn.Font = Enum.Font.GothamBold
+flyBtn.BorderSizePixel = 2
+flyBtn.BorderColor3 = Color3.fromRGB(255, 200, 50)
+flyBtn.Parent = mainFrame
+
+flyBtn.MouseButton1Click:Connect(function()
+    ToggleFly()
+end)
+
+-- ========== LOGGING ==========
 local function UpdateLog(msg)
-    logLabel.Text = msg .. "\n" .. logLabel.Text
-    if string.len(logLabel.Text) > 500 then
-        logLabel.Text = string.sub(logLabel.Text, 1, 400)
-    end
+    print("[FlyScript] " .. msg)
 end
 
--- ========== CONFIG ==========
-local CONFIG = {
-    AutoFarm = true,
-    AutoTeleport = true,
-    AutoCatch = true,
-    AutoHeal = true,
-}
-
-local options = {
-    {name = "Auto Farm", key = "AutoFarm", default = true},
-    {name = "Auto Teleport", key = "AutoTeleport", default = true},
-    {name = "Auto Catch", key = "AutoCatch", default = true},
-    {name = "Auto Heal", key = "AutoHeal", default = true},
-}
-
-local yOffset = 0
-for i, opt in ipairs(options) do
-    CONFIG[opt.key] = opt.default
-    
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 38)
-    btn.Position = UDim2.new(0, 0, 0, yOffset)
-    btn.BackgroundColor3 = opt.default and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
-    btn.Text = opt.name .. ": " .. (opt.default and "ON" or "OFF")
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextScaled = true
-    btn.Font = Enum.Font.Gotham
-    btn.BorderSizePixel = 1
-    btn.BorderColor3 = Color3.fromRGB(100, 200, 255)
-    btn.Parent = contentFrame
-    
-    btn.MouseButton1Click:Connect(function()
-        CONFIG[opt.key] = not CONFIG[opt.key]
-        btn.BackgroundColor3 = CONFIG[opt.key] and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
-        btn.Text = opt.name .. ": " .. (CONFIG[opt.key] and "ON" or "OFF")
-        UpdateLog(opt.key .. " -> " .. tostring(CONFIG[opt.key]))
-    end)
-    
-    yOffset = yOffset + 45
-end
-
-local startBtn = Instance.new("TextButton")
-startBtn.Size = UDim2.new(1, 0, 0, 50)
-startBtn.Position = UDim2.new(0, 0, 0, yOffset + 15)
-startBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
-startBtn.Text = "START SCRIPT"
-startBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-startBtn.TextScaled = true
-startBtn.Font = Enum.Font.GothamBold
-startBtn.BorderSizePixel = 2
-startBtn.BorderColor3 = Color3.fromRGB(255, 200, 50)
-startBtn.Parent = contentFrame
-
--- ========== TÌM REMOTE EVENTS ==========
-local function FindRemoteEvents()
-    local found = {}
-    for _, service in pairs({replicatedStorage, game:GetService("ReplicatedFirst")}) do
-        for _, child in pairs(service:GetChildren()) do
-            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-                table.insert(found, child.Name)
-            end
-        end
-    end
-    return found
-end
-
-local remoteNames = FindRemoteEvents()
-UpdateLog("Found remotes: " .. table.concat(remoteNames, ", "))
-
--- ========== TÌM EVOMON (KHÔNG PHẢI MONSTER) ==========
-local function FindEvomonContainer()
-    -- Evomon thường nằm trực tiếp trong workspace hoặc trong folder "Evomons"
-    local possible = {"Evomons", "Evomon", "WildEvomons", "Pokemons", "Creatures"}
-    
-    for _, name in ipairs(possible) do
-        local container = workspace:FindFirstChild(name)
-        if container then
-            UpdateLog("Found Evomon container: " .. name)
-            return container
-        end
-    end
-    
-    -- Duyệt toàn bộ workspace tìm model có chứa "Evomon" hoặc có Humanoid
-    local evomonList = {}
-    for _, child in pairs(workspace:GetChildren()) do
-        if child:IsA("Model") then
-            local name = child.Name:lower()
-            if string.find(name, "evomon") or string.find(name, "pkm") or string.find(name, "wild") then
-                local humanoid = child:FindFirstChild("Humanoid")
-                if humanoid then
-                    table.insert(evomonList, child)
-                    UpdateLog("Found Evomon: " .. child.Name)
-                end
-            end
-        end
-    end
-    
-    -- Nếu tìm thấy evomon riêng lẻ, trả về workspace (duyệt toàn bộ)
-    if #evomonList > 0 then
-        UpdateLog("Found " .. #evomonList .. " Evomons in workspace")
-        return workspace
-    end
-    
-    -- Duyệt tất cả folder con trong workspace
-    for _, child in pairs(workspace:GetChildren()) do
-        if child:IsA("Folder") or child:IsA("Model") then
-            for _, subChild in pairs(child:GetChildren()) do
-                if subChild:IsA("Model") then
-                    local humanoid = subChild:FindFirstChild("Humanoid")
-                    if humanoid then
-                        UpdateLog("Found Evomon in folder: " .. child.Name .. " -> " .. subChild.Name)
-                        return child
-                    end
-                end
-            end
-        end
-    end
-    
-    return nil
-end
-
-local evomonContainer = FindEvomonContainer()
-UpdateLog("Evomon container set to: " .. (evomonContainer and evomonContainer.Name or "nil"))
-
--- ========== LẤY CHARACTER ==========
+-- ========== HÀM FLY ==========
 local function GetCharacter()
     local char = player.Character
     if not char or not char.Parent then
@@ -234,315 +186,183 @@ local function GetCharacter()
     return char
 end
 
--- ========== TELEPORT ==========
-local function TeleportTo(position)
-    if not position then return false end
-    local char = GetCharacter()
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return false end
+local function SetupFly()
+    character = GetCharacter()
+    humanoid = character:FindFirstChild("Humanoid")
+    rootPart = character:FindFirstChild("HumanoidRootPart")
     
-    local tweenService = game:GetService("TweenService")
-    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear)
-    local tween = tweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(position)})
-    tween:Play()
-    tween.Completed:Wait()
-    return true
-end
-
--- ========== LẤY EVOMON GẦN NHẤT (CHỈNH SỬA) ==========
-local function GetNearestEvomon()
-    local char = GetCharacter()
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil end
-    
-    local container = evomonContainer
-    if not container then return nil end
-    
-    local nearest = nil
-    local minDist = math.huge
-    local searchRadius = 150 -- Tăng bán kính tìm kiếm
-    
-    local function CheckModel(model)
-        if not model:IsA("Model") then return end
-        local humanoid = model:FindFirstChild("Humanoid")
-        local hrp = model:FindFirstChild("HumanoidRootPart")
-        if humanoid and hrp and humanoid.Health > 0 then
-            -- Kiểm tra xem có phải là Evomon không (tên chứa từ khóa hoặc có thuộc tính đặc biệt)
-            local name = model.Name:lower()
-            local isEvomon = string.find(name, "evomon") or 
-                           string.find(name, "pkm") or 
-                           string.find(name, "wild") or
-                           string.find(name, "monster") or
-                           string.find(name, "creature") or
-                           (humanoid:FindFirstChild("IsEvomon") and humanoid.IsEvomon.Value == true)
-            
-            if isEvomon or true then -- Nếu không xác định được, vẫn coi là evomon
-                local dist = (rootPart.Position - hrp.Position).Magnitude
-                if dist < minDist and dist < searchRadius then
-                    nearest = model
-                    minDist = dist
-                end
-            end
-        end
-    end
-    
-    -- Duyệt trong container
-    if container == workspace then
-        -- Duyệt toàn bộ workspace
-        for _, child in pairs(workspace:GetChildren()) do
-            CheckModel(child)
-        end
-    else
-        -- Duyệt trong container cụ thể
-        for _, child in pairs(container:GetChildren()) do
-            CheckModel(child)
-        end
-    end
-    
-    -- Nếu không tìm thấy, tìm kiếm sâu hơn trong các folder con
-    if not nearest then
-        for _, folder in pairs(workspace:GetChildren()) do
-            if folder:IsA("Folder") then
-                for _, child in pairs(folder:GetChildren()) do
-                    CheckModel(child)
-                end
-            end
-        end
-    end
-    
-    if nearest then
-        UpdateLog("Found Evomon: " .. nearest.Name .. " at distance " .. math.floor(minDist))
-    end
-    
-    return nearest
-end
-
--- ========== TẤN CÔNG EVOMON (CHỈNH SỬA) ==========
-local function AttackEvomon(evomon)
-    if not evomon then return false end
-    local hrp = evomon:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    
-    local char = GetCharacter()
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return false end
-    
-    -- Teleport đến gần
-    if CONFIG.AutoTeleport and (rootPart.Position - hrp.Position).Magnitude > 100 then
-        TeleportTo(hrp.Position + Vector3.new(0, 3, 0))
-        wait(0.2)
-    end
-    
-    -- Quay mặt
-    rootPart.CFACE = CFrame.new(rootPart.Position, hrp.Position)
-    
-    -- Cách 1: Simulation click chuột
-    local mouse = player:GetMouse()
-    if mouse then
-        mouse.Button1Down:Fire()
-        wait(0.05)
-        mouse.Button1Up:Fire()
-        UpdateLog("Attack via mouse click")
-    end
-    
-    -- Cách 2: Gọi RemoteEvent (tên thường là Attack, Click, hoặc tương tự)
-    local attackRemote = replicatedStorage:FindFirstChild("AttackEvent") or 
-                         replicatedStorage:FindFirstChild("Attack") or
-                         replicatedStorage:FindFirstChild("Combat") or
-                         replicatedStorage:FindFirstChild("Click") or
-                         replicatedStorage:FindFirstChild("Hit")
-    
-    if attackRemote then
-        attackRemote:FireServer(evomon)
-        UpdateLog("Attack via remote: " .. attackRemote.Name)
-    end
-    
-    -- Cách 3: Gửi sự kiện bằng tool
-    local tool = char:FindFirstChildOfClass("Tool")
-    if tool then
-        tool:Activate()
-        UpdateLog("Attack via tool: " .. tool.Name)
-    end
-    
-    -- Cách 4: Nhấn phím Q hoặc E
-    userInputService:SetKeyDown(Enum.KeyCode.Q)
-    wait(0.05)
-    userInputService:SetKeyUp(Enum.KeyCode.Q)
-    
-    wait(0.3)
-    return true
-end
-
--- ========== NÉM BALL BẮT EVOMON ==========
-local function ThrowBall(evomon)
-    if not evomon then return false end
-    local hrp = evomon:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    
-    local char = GetCharacter()
-    
-    -- Tìm Ball (có thể là Pokeball, Evoball, CaptureBall)
-    local ball = player.Backpack:FindFirstChild("Pokeball") or 
-                 player.Backpack:FindFirstChild("PokeBall") or
-                 player.Backpack:FindFirstChild("Evoball") or
-                 player.Backpack:FindFirstChild("CaptureBall") or
-                 char:FindFirstChild("Pokeball") or
-                 char:FindFirstChild("Evoball")
-    
-    if not ball then
-        UpdateLog("No ball found")
+    if not humanoid or not rootPart then
+        UpdateLog("Cannot find Humanoid or HumanoidRootPart")
         return false
     end
     
-    -- Equip
-    if ball.Parent ~= char then
-        ball.Parent = char
-        wait(0.1)
-    end
+    -- Tạo BodyVelocity để di chuyển
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "FlyBV"
+    bodyVelocity.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
     
-    -- Sử dụng
-    local remote = ball:FindFirstChild("Activate") or 
-                   ball:FindFirstChild("RemoteEvent") or
-                   ball:FindFirstChild("Use") or
-                   ball:FindFirstChild("Throw")
+    -- Tạo BodyGyro để giữ hướng
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.Name = "FlyBG"
+    bodyGyro.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+    bodyGyro.Parent = rootPart
+    bodyGyro.CFrame = rootPart.CFrame
     
-    if remote then
-        if remote:IsA("RemoteEvent") then
-            remote:FireServer(hrp.Position, evomon)
-        else
-            remote:Fire()
-        end
-        UpdateLog("Ball thrown at " .. evomon.Name)
-    end
+    -- Tắt trọng lực
+    humanoid.PlatformStand = true
+    humanoid.AutoRotate = false
     
-    wait(1)
+    UpdateLog("Fly setup complete")
     return true
 end
 
--- ========== TỰ HỒI MÁU ==========
-local function AutoHeal()
-    local char = GetCharacter()
-    local humanoid = char:FindFirstChild("Humanoid")
-    if not humanoid then return end
-    
-    local hp = humanoid.Health
-    local maxHp = humanoid.MaxHealth
-    if maxHp <= 0 then return end
-    
-    local percent = (hp / maxHp) * 100
-    
-    if percent < 30 then
-        local potion = player.Backpack:FindFirstChild("Potion") or 
-                       player.Backpack:FindFirstChild("HealthPotion") or
-                       char:FindFirstChild("Potion")
-        
-        if potion then
-            if potion.Parent ~= char then
-                potion.Parent = char
-                wait(0.1)
-            end
-            
-            local useRemote = potion:FindFirstChild("Use") or 
-                             potion:FindFirstChild("RemoteEvent")
-            if useRemote then
-                if useRemote:IsA("RemoteEvent") then
-                    useRemote:FireServer()
-                else
-                    useRemote:Fire()
-                end
-                UpdateLog("Used Potion")
-            end
-            wait(0.5)
-        end
+local function CleanupFly()
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+        bodyVelocity = nil
     end
+    if bodyGyro then
+        bodyGyro:Destroy()
+        bodyGyro = nil
+    end
+    if humanoid then
+        humanoid.PlatformStand = false
+        humanoid.AutoRotate = true
+    end
+    UpdateLog("Fly cleanup complete")
 end
 
--- ========== VÒNG LẶP CHÍNH ==========
-local isRunning = false
-local loopCoroutine = nil
-local frameCounter = 0
-
-local function MainLoop()
-    UpdateLog("Main loop started - targeting Evomons")
-    while isRunning do
-        wait(0.05)
-        frameCounter = frameCounter + 1
-        
-        -- Mỗi 20 frames (~1 giây) log status
-        if frameCounter % 20 == 0 then
-            local char = GetCharacter()
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local pos = hrp.Position
-                UpdateLog("Position: " .. math.floor(pos.X) .. ", " .. math.floor(pos.Z))
-            end
-        end
-        
-        -- Auto Heal
-        if CONFIG.AutoHeal then
-            AutoHeal()
-        end
-        
-        -- Auto Farm
-        if CONFIG.AutoFarm then
-            local evomon = GetNearestEvomon()
-            if evomon then
-                local humanoid = evomon:FindFirstChild("Humanoid")
-                local hrp = evomon:FindFirstChild("HumanoidRootPart")
-                if humanoid and hrp then
-                    local hp = humanoid.Health
-                    local maxHp = humanoid.MaxHealth
-                    local hpPercent = (hp / maxHp) * 100
-                    
-                    if CONFIG.AutoCatch and hpPercent < 20 then
-                        UpdateLog("Catching Evomon: " .. evomon.Name)
-                        ThrowBall(evomon)
-                    else
-                        UpdateLog("Attacking: " .. evomon.Name .. " (HP: " .. math.floor(hpPercent) .. "%)")
-                        AttackEvomon(evomon)
-                    end
-                end
-            else
-                UpdateLog("No Evomon found nearby, moving to spawn")
-                local spawnPoint = workspace:FindFirstChild("SpawnLocation")
-                if spawnPoint and CONFIG.AutoTeleport then
-                    TeleportTo(spawnPoint.Position + Vector3.new(0, 5, 0))
-                end
-            end
-        end
-    end
-end
-
--- ========== START BUTTON ==========
-startBtn.MouseButton1Click:Connect(function()
-    if isRunning then
-        isRunning = false
-        startBtn.Text = "START SCRIPT"
-        startBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
-        UpdateLog("Script stopped")
-        DebugLog("Script stopped")
+-- ========== TOGGLE FLY ==========
+function ToggleFly()
+    if flying then
+        flying = false
+        flyBtn.Text = "FLY: OFF"
+        flyBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
+        CleanupFly()
+        UpdateLog("Fly disabled")
     else
-        isRunning = true
-        startBtn.Text = "STOP SCRIPT"
-        startBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        UpdateLog("Script started - looking for Evomons")
-        DebugLog("Script started")
-        if loopCoroutine then
-            loopCoroutine = nil
+        flying = true
+        flyBtn.Text = "FLY: ON"
+        flyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        if SetupFly() then
+            UpdateLog("Fly enabled - Speed: " .. currentSpeed)
+        else
+            flying = false
+            flyBtn.Text = "FLY: OFF"
+            flyBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
+            UpdateLog("Failed to enable fly")
         end
-        loopCoroutine = coroutine.wrap(MainLoop)
-        loopCoroutine()
+    end
+end
+
+-- ========== UPDATE FLY MOVEMENT ==========
+local function UpdateFly()
+    if not flying then return end
+    if not rootPart then
+        character = GetCharacter()
+        rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
+    end
+    
+    if not bodyVelocity then return end
+    
+    -- Lấy hướng từ camera
+    local cameraCFrame = camera.CFrame
+    local forward = cameraCFrame.LookVector
+    local right = cameraCFrame.RightVector
+    local up = cameraCFrame.UpVector
+    
+    -- Lấy input từ bàn phím
+    local moveDirection = Vector3.new(0, 0, 0)
+    
+    if userInputService:IsKeyDown(Enum.KeyCode.W) then
+        moveDirection = moveDirection + forward
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.S) then
+        moveDirection = moveDirection - forward
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.A) then
+        moveDirection = moveDirection - right
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.D) then
+        moveDirection = moveDirection + right
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.Space) then
+        moveDirection = moveDirection + up
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        moveDirection = moveDirection - up
+    end
+    
+    -- Nếu không có input, dừng lại
+    if moveDirection.Magnitude > 0 then
+        moveDirection = moveDirection.Unit * currentSpeed
+    else
+        moveDirection = Vector3.new(0, 0, 0)
+    end
+    
+    -- Áp dụng vận tốc
+    bodyVelocity.Velocity = moveDirection
+    
+    -- Cập nhật hướng cho BodyGyro
+    if bodyGyro then
+        bodyGyro.CFrame = CFrame.new(rootPart.Position, rootPart.Position + cameraCFrame.LookVector)
+    end
+end
+
+-- ========== PHÍM TẮT ==========
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.F then
+        ToggleFly()
+    end
+    
+    -- Phím tắt điều chỉnh tốc độ
+    if input.KeyCode == Enum.KeyCode.Equals or input.KeyCode == Enum.KeyCode.Plus then
+        currentSpeed = math.min(CONFIG.MaxSpeed, currentSpeed + CONFIG.StepSize)
+        CONFIG.FlySpeed = currentSpeed
+        speedLabel.Text = "Speed: " .. currentSpeed
+        speedSlider.Text = tostring(currentSpeed)
+        speedDisplay.Text = tostring(currentSpeed)
+        UpdateLog("Speed increased to: " .. currentSpeed)
+    end
+    
+    if input.KeyCode == Enum.KeyCode.Minus then
+        currentSpeed = math.max(CONFIG.MinSpeed, currentSpeed - CONFIG.StepSize)
+        CONFIG.FlySpeed = currentSpeed
+        speedLabel.Text = "Speed: " .. currentSpeed
+        speedSlider.Text = tostring(currentSpeed)
+        speedDisplay.Text = tostring(currentSpeed)
+        UpdateLog("Speed decreased to: " .. currentSpeed)
     end
 end)
 
--- ========== CLOSE BUTTON ==========
-closeBtn.MouseButton1Click:Connect(function()
-    isRunning = false
-    screenGui:Destroy()
-    DebugLog("Menu closed")
+-- ========== LOOP CHÍNH ==========
+runService.RenderStepped:Connect(function()
+    UpdateFly()
 end)
 
--- ========== DRAG FUNCTIONALITY ==========
+-- ========== XỬ LÝ KHI CHARACTER CHẾT ==========
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = character:FindFirstChild("Humanoid")
+    rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if flying then
+        wait(0.5)
+        SetupFly()
+    end
+end)
+
+-- ========== KHỞI TẠO ==========
+UpdateLog("Fly script loaded! Press F to toggle fly")
+UpdateLog("Use WASD to move, Space up, Shift down")
+UpdateLog("Use + and - keys to adjust speed")
+
+-- ========== KÉO THẢ GUI ==========
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -568,6 +388,4 @@ userInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ========== SUCCESS LOG ==========
-UpdateLog("Menu loaded successfully! Press START to find Evomons")
-DebugLog("Menu loaded successfully")
+print("[DeltaX] Fly script loaded successfully!")
