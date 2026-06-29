@@ -1,15 +1,25 @@
--- EVOMON ROBLOX - FIX MENU NOT SHOWING
--- Causes: GUI hidden, conflicts, or ScreenGui creation error
--- Fix: Create new high-priority GUI with forced visibility
+-- EVOMON ROBLOX - FIX SCRIPT NOT WORKING
+-- Causes: Wrong remote event names, workspace changes, or loop blocked
+-- Fix: Auto-detect, detailed debug, multi-method force attack
 
 local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
 
--- DELETE OLD GUI IF EXISTS (avoid conflict)
+-- ========== DEBUG LOG ==========
+local function DebugLog(msg)
+    print("[DeltaX-DEBUG] " .. tostring(msg))
+end
+
+DebugLog("Script started")
+
+-- ========== DELETE OLD GUI ==========
 local oldGui = playerGui:FindFirstChild("EvomonMenu")
 if oldGui then oldGui:Destroy() end
 
--- CREATE NEW SCREENGUI
+-- ========== CREATE GUI ==========
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EvomonMenu"
 screenGui.ResetOnSpawn = false
@@ -17,71 +27,88 @@ screenGui.IgnoreGuiInset = true
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
 
--- CREATE MAIN FRAME (MENU)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 400, 0, 500)
-mainFrame.Position = UDim2.new(0.5, -200, 0.5, -250)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-mainFrame.BackgroundTransparency = 0.1
+mainFrame.Size = UDim2.new(0, 420, 0, 580)
+mainFrame.Position = UDim2.new(0.5, -210, 0.5, -290)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
+mainFrame.BackgroundTransparency = 0.05
 mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.fromRGB(100, 200, 255)
+mainFrame.BorderColor3 = Color3.fromRGB(255, 100, 50)
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 
--- SHADOW EFFECT
-local shadow = Instance.new("Frame")
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(1, 10, 1, 10)
-shadow.Position = UDim2.new(0, -5, 0, -5)
-shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-shadow.BackgroundTransparency = 0.6
-shadow.BorderSizePixel = 0
-shadow.Parent = mainFrame
-
--- TITLE BAR
+-- Title
 local titleBar = Instance.new("Frame")
-titleBar.Name = "TitleBar"
-titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+titleBar.Size = UDim2.new(1, 0, 0, 45)
+titleBar.BackgroundColor3 = Color3.fromRGB(40, 30, 50)
 titleBar.BorderSizePixel = 1
-titleBar.BorderColor3 = Color3.fromRGB(100, 200, 255)
+titleBar.BorderColor3 = Color3.fromRGB(255, 100, 50)
 titleBar.Parent = mainFrame
 
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Name = "TitleLabel"
 titleLabel.Size = UDim2.new(1, -40, 1, 0)
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "EVOMON - AUTO FARM (DELTAX)"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Text = "EVOMON FIXED - DELTAX"
+titleLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
 titleLabel.TextScaled = true
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.Parent = titleBar
 
--- CLOSE BUTTON (X)
 local closeBtn = Instance.new("TextButton")
-closeBtn.Name = "CloseBtn"
-closeBtn.Size = UDim2.new(0, 30, 1, -10)
-closeBtn.Position = UDim2.new(1, -35, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.Size = UDim2.new(0, 35, 1, -8)
+closeBtn.Position = UDim2.new(1, -40, 0, 4)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
 closeBtn.Text = "X"
 closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeBtn.TextScaled = true
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.Parent = titleBar
 
--- CONTENT FRAME
 local contentFrame = Instance.new("Frame")
-contentFrame.Name = "Content"
-contentFrame.Size = UDim2.new(1, -20, 1, -70)
-contentFrame.Position = UDim2.new(0, 10, 0, 50)
+contentFrame.Size = UDim2.new(1, -20, 1, -75)
+contentFrame.Position = UDim2.new(0, 10, 0, 55)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Parent = mainFrame
 
--- TOGGLE OPTIONS
+-- DEBUG LOG AREA
+local logFrame = Instance.new("Frame")
+logFrame.Size = UDim2.new(1, 0, 0, 120)
+logFrame.Position = UDim2.new(0, 0, 0, 350)
+logFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+logFrame.BorderSizePixel = 1
+logFrame.BorderColor3 = Color3.fromRGB(100, 100, 200)
+logFrame.Parent = contentFrame
+
+local logLabel = Instance.new("TextLabel")
+logLabel.Size = UDim2.new(1, -10, 1, -10)
+logLabel.Position = UDim2.new(0, 5, 0, 5)
+logLabel.BackgroundTransparency = 1
+logLabel.Text = "Ready..."
+logLabel.TextColor3 = Color3.fromRGB(0, 255, 100)
+logLabel.TextScaled = true
+logLabel.TextXAlignment = Enum.TextXAlignment.Left
+logLabel.TextYAlignment = Enum.TextYAlignment.Top
+logLabel.Font = Enum.Font.Code
+logLabel.Parent = logFrame
+
+local function UpdateLog(msg)
+    logLabel.Text = msg .. "\n" .. logLabel.Text
+    if string.len(logLabel.Text) > 500 then
+        logLabel.Text = string.sub(logLabel.Text, 1, 400)
+    end
+end
+
+-- ========== CONFIG ==========
+local CONFIG = {
+    AutoFarm = true,
+    AutoTeleport = true,
+    AutoCatch = true,
+    AutoHeal = true,
+}
+
 local options = {
     {name = "Auto Farm", key = "AutoFarm", default = true},
     {name = "Auto Teleport", key = "AutoTeleport", default = true},
@@ -89,18 +116,14 @@ local options = {
     {name = "Auto Heal", key = "AutoHeal", default = true},
 }
 
-local CONFIG = {}
-
--- CREATE EACH OPTION
 local yOffset = 0
 for i, opt in ipairs(options) do
     CONFIG[opt.key] = opt.default
     
     local btn = Instance.new("TextButton")
-    btn.Name = opt.key .. "Btn"
-    btn.Size = UDim2.new(1, 0, 0, 40)
+    btn.Size = UDim2.new(1, 0, 0, 38)
     btn.Position = UDim2.new(0, 0, 0, yOffset)
-    btn.BackgroundColor3 = opt.default and Color3.fromRGB(60, 180, 60) or Color3.fromRGB(180, 60, 60)
+    btn.BackgroundColor3 = opt.default and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
     btn.Text = opt.name .. ": " .. (opt.default and "ON" or "OFF")
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextScaled = true
@@ -111,19 +134,18 @@ for i, opt in ipairs(options) do
     
     btn.MouseButton1Click:Connect(function()
         CONFIG[opt.key] = not CONFIG[opt.key]
-        btn.BackgroundColor3 = CONFIG[opt.key] and Color3.fromRGB(60, 180, 60) or Color3.fromRGB(180, 60, 60)
+        btn.BackgroundColor3 = CONFIG[opt.key] and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
         btn.Text = opt.name .. ": " .. (CONFIG[opt.key] and "ON" or "OFF")
+        UpdateLog(opt.key .. " -> " .. tostring(CONFIG[opt.key]))
     end)
     
-    yOffset = yOffset + 50
+    yOffset = yOffset + 45
 end
 
--- START / STOP BUTTON
 local startBtn = Instance.new("TextButton")
-startBtn.Name = "StartBtn"
 startBtn.Size = UDim2.new(1, 0, 0, 50)
-startBtn.Position = UDim2.new(0, 0, 0, yOffset + 10)
-startBtn.BackgroundColor3 = Color3.fromRGB(30, 100, 200)
+startBtn.Position = UDim2.new(0, 0, 0, yOffset + 15)
+startBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
 startBtn.Text = "START SCRIPT"
 startBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 startBtn.TextScaled = true
@@ -132,158 +154,297 @@ startBtn.BorderSizePixel = 2
 startBtn.BorderColor3 = Color3.fromRGB(255, 200, 50)
 startBtn.Parent = contentFrame
 
-local isRunning = false
-local loopCoroutine = nil
+-- ========== FIND REMOTE EVENTS ==========
+local function FindRemoteEvents()
+    local found = {}
+    for _, service in pairs({replicatedStorage, game:GetService("ReplicatedFirst")}) do
+        for _, child in pairs(service:GetChildren()) do
+            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                table.insert(found, child.Name)
+            end
+        end
+    end
+    return found
+end
 
--- TELEPORT FUNCTION
+local remoteNames = FindRemoteEvents()
+UpdateLog("Found remotes: " .. table.concat(remoteNames, ", "))
+
+-- ========== FIND MONSTER CONTAINER ==========
+local function FindMonsterContainer()
+    local possible = {"Monsters", "NPCs", "Mobs", "Creatures", "Enemies", "Wild"}
+    for _, name in ipairs(possible) do
+        local container = workspace:FindFirstChild(name)
+        if container then
+            UpdateLog("Found monster container: " .. name)
+            return container
+        end
+    end
+    -- Scan entire workspace
+    for _, child in pairs(workspace:GetChildren()) do
+        if child:IsA("Model") and child:FindFirstChild("Humanoid") then
+            local container = child.Parent
+            if container and container ~= workspace then
+                UpdateLog("Found monster parent: " .. container.Name)
+                return container
+            end
+        end
+    end
+    return nil
+end
+
+local monsterContainer = FindMonsterContainer()
+
+-- ========== GET CHARACTER ==========
+local function GetCharacter()
+    local char = player.Character
+    if not char or not char.Parent then
+        char = player.CharacterAdded:Wait()
+    end
+    return char
+end
+
+-- ========== TELEPORT ==========
 local function TeleportTo(position)
-    if not position then return end
-    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    if not position then return false end
+    local char = GetCharacter()
+    local rootPart = char:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    
     local tweenService = game:GetService("TweenService")
-    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Linear)
+    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear)
     local tween = tweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(position)})
     tween:Play()
     tween.Completed:Wait()
+    return true
 end
 
--- GET NEAREST MONSTER
+-- ========== GET NEAREST MONSTER (IMPROVED) ==========
 local function GetNearestMonster()
-    local monsters = workspace:FindFirstChild("Monsters") or workspace:FindFirstChild("NPCs")
-    if not monsters then return nil end
-    local character = player.Character
-    if not character then return nil end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local char = GetCharacter()
+    local rootPart = char:FindFirstChild("HumanoidRootPart")
     if not rootPart then return nil end
+    
+    local container = monsterContainer
+    if not container then return nil end
     
     local nearest = nil
     local minDist = math.huge
     
-    for _, child in pairs(monsters:GetChildren()) do
-        if child:IsA("Model") and child:FindFirstChild("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
-            local hp = child.Humanoid.Health
-            if hp > 0 then
-                local dist = (rootPart.Position - child.HumanoidRootPart.Position).Magnitude
-                if dist < minDist and dist < 50 then
+    for _, child in pairs(container:GetChildren()) do
+        if child:IsA("Model") then
+            local humanoid = child:FindFirstChild("Humanoid")
+            local hrp = child:FindFirstChild("HumanoidRootPart")
+            if humanoid and hrp and humanoid.Health > 0 then
+                local dist = (rootPart.Position - hrp.Position).Magnitude
+                if dist < minDist and dist < 80 then
                     nearest = child
                     minDist = dist
                 end
             end
         end
     end
+    
+    if not nearest then
+        -- Scan entire workspace
+        for _, child in pairs(workspace:GetChildren()) do
+            if child:IsA("Model") and child ~= char then
+                local humanoid = child:FindFirstChild("Humanoid")
+                local hrp = child:FindFirstChild("HumanoidRootPart")
+                if humanoid and hrp and humanoid.Health > 0 then
+                    local dist = (rootPart.Position - hrp.Position).Magnitude
+                    if dist < minDist and dist < 80 then
+                        nearest = child
+                        minDist = dist
+                    end
+                end
+            end
+        end
+    end
+    
     return nearest
 end
 
--- ATTACK MONSTER
+-- ========== ATTACK USING MULTIPLE METHODS ==========
 local function AttackMonster(monster)
-    if not monster then return end
+    if not monster then return false end
     local hrp = monster:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    local character = player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
+    if not hrp then return false end
     
-    if CONFIG.AutoTeleport and (rootPart.Position - hrp.Position).Magnitude > 150 then
-        TeleportTo(hrp.Position + Vector3.new(0, 5, 0))
-        wait(0.3)
+    local char = GetCharacter()
+    local rootPart = char:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return false end
+    
+    -- Teleport closer
+    if CONFIG.AutoTeleport and (rootPart.Position - hrp.Position).Magnitude > 120 then
+        TeleportTo(hrp.Position + Vector3.new(0, 3, 0))
+        wait(0.2)
     end
     
+    -- Face monster
     rootPart.CFrame = CFrame.new(rootPart.Position, hrp.Position)
     
+    -- Method 1: Mouse click simulation
     local mouse = player:GetMouse()
     if mouse then
         mouse.Button1Down:Fire()
-        wait(0.1)
+        wait(0.05)
         mouse.Button1Up:Fire()
+        UpdateLog("Attack via mouse click")
     end
     
-    local attackEvent = game:GetService("ReplicatedStorage"):FindFirstChild("AttackEvent")
-    if attackEvent then
-        attackEvent:FireServer(monster)
+    -- Method 2: RemoteEvent call
+    local attackRemote = replicatedStorage:FindFirstChild("AttackEvent") or 
+                         replicatedStorage:FindFirstChild("Attack") or
+                         replicatedStorage:FindFirstChild("Combat")
+    if attackRemote then
+        attackRemote:FireServer(monster)
+        UpdateLog("Attack via remote: " .. attackRemote.Name)
     end
     
-    wait(0.5)
+    -- Method 3: Tool activation
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then
+        tool:Activate()
+        UpdateLog("Attack via tool: " .. tool.Name)
+    end
+    
+    -- Method 4: Key press (Q or E)
+    userInputService:SetKeyDown(Enum.KeyCode.Q)
+    wait(0.05)
+    userInputService:SetKeyUp(Enum.KeyCode.Q)
+    
+    wait(0.3)
+    return true
 end
 
--- THROW POKEBALL
+-- ========== THROW POKEBALL ==========
 local function ThrowPokeball(monster)
-    if not monster then return end
+    if not monster then return false end
     local hrp = monster:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    if not hrp then return false end
     
-    local pokeballItem = player.Backpack:FindFirstChild("Pokeball") or player.Character:FindFirstChild("Pokeball")
-    if not pokeballItem then return end
+    local char = GetCharacter()
     
-    local tool = pokeballItem
-    if tool and tool.Parent ~= player.Character then
-        tool.Parent = player.Character
+    -- Find Pokeball
+    local pokeball = player.Backpack:FindFirstChild("Pokeball") or 
+                     player.Backpack:FindFirstChild("PokeBall") or
+                     char:FindFirstChild("Pokeball")
+    
+    if not pokeball then
+        UpdateLog("No Pokeball found")
+        return false
+    end
+    
+    -- Equip
+    if pokeball.Parent ~= char then
+        pokeball.Parent = char
         wait(0.1)
     end
     
-    if tool and tool:FindFirstChild("Activate") then
-        tool.Activate:FireServer(hrp.Position)
-    elseif tool and tool:FindFirstChild("RemoteEvent") then
-        tool.RemoteEvent:FireServer(monster)
+    -- Use
+    local remote = pokeball:FindFirstChild("Activate") or 
+                   pokeball:FindFirstChild("RemoteEvent") or
+                   pokeball:FindFirstChild("Use")
+    
+    if remote then
+        if remote:IsA("RemoteEvent") then
+            remote:FireServer(hrp.Position, monster)
+        else
+            remote:Fire()
+        end
+        UpdateLog("Pokeball thrown")
     end
     
     wait(1)
+    return true
 end
 
--- AUTO HEAL
+-- ========== AUTO HEAL ==========
 local function AutoHeal()
-    local character = player.Character
-    if not character then return end
-    local humanoid = character:FindFirstChild("Humanoid")
+    local char = GetCharacter()
+    local humanoid = char:FindFirstChild("Humanoid")
     if not humanoid then return end
+    
     local hp = humanoid.Health
     local maxHp = humanoid.MaxHealth
+    if maxHp <= 0 then return end
+    
     local percent = (hp / maxHp) * 100
     
     if percent < 30 then
-        local potion = player.Backpack:FindFirstChild("Potion") or player.Character:FindFirstChild("Potion")
+        local potion = player.Backpack:FindFirstChild("Potion") or 
+                       player.Backpack:FindFirstChild("HealthPotion") or
+                       char:FindFirstChild("Potion")
+        
         if potion then
-            if potion.Parent ~= player.Character then
-                potion.Parent = player.Character
+            if potion.Parent ~= char then
+                potion.Parent = char
                 wait(0.1)
             end
-            if potion:FindFirstChild("Use") then
-                potion.Use:FireServer()
-            elseif potion:FindFirstChild("RemoteEvent") then
-                potion.RemoteEvent:FireServer()
+            
+            local useRemote = potion:FindFirstChild("Use") or 
+                             potion:FindFirstChild("RemoteEvent")
+            if useRemote then
+                if useRemote:IsA("RemoteEvent") then
+                    useRemote:FireServer()
+                else
+                    useRemote:Fire()
+                end
+                UpdateLog("Used Potion")
             end
             wait(0.5)
         end
     end
 end
 
--- MAIN LOOP
+-- ========== MAIN LOOP (IMPROVED) ==========
+local isRunning = false
+local loopCoroutine = nil
+local frameCounter = 0
+
 local function MainLoop()
+    UpdateLog("Main loop started")
     while isRunning do
-        wait(0.1)
-        local character = player.Character
-        if not character then continue end
+        wait(0.05)
+        frameCounter = frameCounter + 1
         
+        -- Every 20 frames (~1 second) log status
+        if frameCounter % 20 == 0 then
+            local char = GetCharacter()
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local pos = hrp.Position
+                UpdateLog("Position: " .. math.floor(pos.X) .. ", " .. math.floor(pos.Z))
+            end
+        end
+        
+        -- Auto Heal
         if CONFIG.AutoHeal then
             AutoHeal()
         end
         
+        -- Auto Farm
         if CONFIG.AutoFarm then
             local monster = GetNearestMonster()
             if monster then
+                local humanoid = monster:FindFirstChild("Humanoid")
                 local hrp = monster:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local hp = monster.Humanoid.Health
-                    local maxHp = monster.Humanoid.MaxHealth
+                if humanoid and hrp then
+                    local hp = humanoid.Health
+                    local maxHp = humanoid.MaxHealth
                     local hpPercent = (hp / maxHp) * 100
                     
                     if CONFIG.AutoCatch and hpPercent < 20 then
+                        UpdateLog("Catching monster: " .. monster.Name)
                         ThrowPokeball(monster)
                     else
+                        UpdateLog("Attacking: " .. monster.Name .. " (HP: " .. math.floor(hpPercent) .. "%)")
                         AttackMonster(monster)
                     end
                 end
             else
+                UpdateLog("No monster found, moving to spawn")
                 local spawnPoint = workspace:FindFirstChild("SpawnLocation")
                 if spawnPoint and CONFIG.AutoTeleport then
                     TeleportTo(spawnPoint.Position + Vector3.new(0, 5, 0))
@@ -293,18 +454,20 @@ local function MainLoop()
     end
 end
 
--- START BUTTON EVENT
+-- ========== START BUTTON ==========
 startBtn.MouseButton1Click:Connect(function()
     if isRunning then
         isRunning = false
         startBtn.Text = "START SCRIPT"
-        startBtn.BackgroundColor3 = Color3.fromRGB(30, 100, 200)
-        print("[DeltaX] Script stopped")
+        startBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
+        UpdateLog("Script stopped")
+        DebugLog("Script stopped")
     else
         isRunning = true
         startBtn.Text = "STOP SCRIPT"
         startBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        print("[DeltaX] Script started")
+        UpdateLog("Script started")
+        DebugLog("Script started")
         if loopCoroutine then
             loopCoroutine = nil
         end
@@ -313,13 +476,14 @@ startBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- CLOSE MENU BUTTON
+-- ========== CLOSE BUTTON ==========
 closeBtn.MouseButton1Click:Connect(function()
+    isRunning = false
     screenGui:Destroy()
-    print("[DeltaX] Menu closed")
+    DebugLog("Menu closed")
 end)
 
--- DRAG FUNCTIONALITY
+-- ========== DRAG FUNCTIONALITY ==========
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -338,12 +502,13 @@ mainFrame.InputEnded:Connect(function(input)
     end
 end)
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+userInputService.InputChanged:Connect(function(input)
     if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
         mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
--- SUCCESS LOG
-print("[DeltaX] Menu loaded successfully. Press START to begin farming.")
+-- ========== SUCCESS LOG ==========
+UpdateLog("Menu loaded successfully!")
+DebugLog("Menu loaded successfully")
