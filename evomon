@@ -1,19 +1,17 @@
--- NORMAL - HUB ULTIMATE
--- Kết hợp: Fly + Speed Hack + ESP Player + Aimbot (Strike Back)
--- Make by Hiendz
--- Phím tắt: F (Fly), G (Speed), Z (ESP), X (Menu), T (Aimbot), +/-
+-- FLY + SPEED HACK + ESP PLAYER - Make by Hiendz
+-- Không giới hạn tốc độ bay và chạy
+-- Phím tắt: F (Fly), G (Speed Hack), Z (ESP), X (Toggle Menu), H (Reset Speed)
+-- Dành cho DeltaX VNG
 
 local player = game.Players.LocalPlayer
 local userInputService = game:GetService("UserInputService")
 local runService = game:GetService("RunService")
 local camera = workspace.CurrentCamera
 local players = game:GetService("Players")
-local mouse = player:GetMouse()
 local guiService = game:GetService("GuiService")
 
 -- ========== CẤU HÌNH ==========
 local CONFIG = {
-    -- Fly
     FlySpeed = 100,
     FlySpeedUp = 80,
     DefaultSpeed = 100,
@@ -22,26 +20,13 @@ local CONFIG = {
     StepSize = 10,
     WalkSpeed = 100,
     JumpPower = 100,
-    -- ESP
     ESPEnabled = true,
     ESPColor = Color3.fromRGB(0, 255, 0),
     ESPDistance = 500,
     ShowHealth = true,
     ShowName = true,
     ShowDistance = true,
-    -- Aimbot
-    AimEnabled = true,
-    AimSmoothness = 0.25,
-    AimSensitivity = 1.0,
-    AimFOV = 150,
-    AimPart = "Head",
-    ShowFOV = true,
-    OnlyVisible = true,
-    TeamCheck = false,
-    SilentAim = false,
-    LockTarget = true,
-    -- Menu
-    MenuVisible = true,
+    MenuVisible = true,      -- Menu hiển thị mặc định
 }
 
 -- ========== BIẾN TRẠNG THÁI ==========
@@ -57,26 +42,22 @@ local espEnabled = CONFIG.ESPEnabled
 local espObjects = {}
 local espFolder = nil
 local menuVisible = CONFIG.MenuVisible
-local aimbotEnabled = CONFIG.AimEnabled
-local currentTarget = nil
-local fovCircle = nil
-local aimLine = nil
 
 -- ========== TẠO GUI ==========
 local playerGui = player:WaitForChild("PlayerGui")
-local oldGui = playerGui:FindFirstChild("HiendzHub")
+local oldGui = playerGui:FindFirstChild("FlyMenu")
 if oldGui then oldGui:Destroy() end
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "HiendzHub"
+screenGui.Name = "FlyMenu"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = playerGui
 
--- ===== NÚT BẬT TẮT MENU =====
+-- ===== NÚT BẬT TẮT MENU (MINI BUTTON) =====
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Name = "ToggleBtn"
-toggleBtn.Size = UDim2.new(0, 70, 0, 35)
+toggleBtn.Size = UDim2.new(0, 60, 0, 30)
 toggleBtn.Position = UDim2.new(0, 10, 0, 10)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
 toggleBtn.Text = "MENU"
@@ -90,32 +71,32 @@ toggleBtn.Parent = screenGui
 -- ===== MAIN FRAME =====
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 360, 0, 420)
-mainFrame.Position = UDim2.new(0.5, -180, 0.75, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 30)
-mainFrame.BackgroundTransparency = 0.05
+mainFrame.Size = UDim2.new(0, 320, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -160, 0.8, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 35)
+mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 2
-mainFrame.BorderColor3 = Color3.fromRGB(255, 200, 50)
+mainFrame.BorderColor3 = Color3.fromRGB(0, 200, 255)
 mainFrame.ClipsDescendants = true
 mainFrame.Parent = screenGui
 mainFrame.Visible = menuVisible
 
 -- Tiêu đề
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
+title.Size = UDim2.new(1, 0, 0, 35)
 title.BackgroundColor3 = Color3.fromRGB(40, 40, 80)
 title.BorderSizePixel = 1
 title.BorderColor3 = Color3.fromRGB(255, 200, 50)
-title.Text = "HIENDZ - HUB ULTIMATE"
+title.Text = "HIENDZ - HUB (UNLIMITED)"
 title.TextColor3 = Color3.fromRGB(255, 200, 100)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.Parent = mainFrame
 
--- ===== TAB FLY =====
+-- ===== FLY CONTROL =====
 local flyLabel = Instance.new("TextLabel")
 flyLabel.Size = UDim2.new(0.5, 0, 0, 25)
-flyLabel.Position = UDim2.new(0, 10, 0, 50)
+flyLabel.Position = UDim2.new(0, 10, 0, 45)
 flyLabel.BackgroundTransparency = 1
 flyLabel.Text = "Fly: OFF"
 flyLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -125,8 +106,8 @@ flyLabel.TextXAlignment = Enum.TextXAlignment.Left
 flyLabel.Parent = mainFrame
 
 local flyBtn = Instance.new("TextButton")
-flyBtn.Size = UDim2.new(0.25, 0, 0, 25)
-flyBtn.Position = UDim2.new(0.6, 0, 0, 50)
+flyBtn.Size = UDim2.new(0.3, 0, 0, 25)
+flyBtn.Position = UDim2.new(0.6, 0, 0, 45)
 flyBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
 flyBtn.Text = "FLY"
 flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -134,12 +115,14 @@ flyBtn.TextScaled = true
 flyBtn.Font = Enum.Font.GothamBold
 flyBtn.Parent = mainFrame
 
-flyBtn.MouseButton1Click:Connect(function() ToggleFly() end)
+flyBtn.MouseButton1Click:Connect(function()
+    ToggleFly()
+end)
 
--- ===== TAB SPEED =====
+-- ===== SPEED HACK =====
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(0.5, 0, 0, 25)
-speedLabel.Position = UDim2.new(0, 10, 0, 85)
+speedLabel.Position = UDim2.new(0, 10, 0, 80)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "Speed Hack: OFF"
 speedLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -149,8 +132,8 @@ speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedLabel.Parent = mainFrame
 
 local speedBtn = Instance.new("TextButton")
-speedBtn.Size = UDim2.new(0.25, 0, 0, 25)
-speedBtn.Position = UDim2.new(0.6, 0, 0, 85)
+speedBtn.Size = UDim2.new(0.3, 0, 0, 25)
+speedBtn.Position = UDim2.new(0.6, 0, 0, 80)
 speedBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
 speedBtn.Text = "SPEED"
 speedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -158,12 +141,14 @@ speedBtn.TextScaled = true
 speedBtn.Font = Enum.Font.GothamBold
 speedBtn.Parent = mainFrame
 
-speedBtn.MouseButton1Click:Connect(function() ToggleSpeedHack() end)
+speedBtn.MouseButton1Click:Connect(function()
+    ToggleSpeedHack()
+end)
 
--- ===== TAB ESP =====
+-- ===== ESP TOGGLE =====
 local espLabel = Instance.new("TextLabel")
 espLabel.Size = UDim2.new(0.5, 0, 0, 25)
-espLabel.Position = UDim2.new(0, 10, 0, 120)
+espLabel.Position = UDim2.new(0, 10, 0, 115)
 espLabel.BackgroundTransparency = 1
 espLabel.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
 espLabel.TextColor3 = espEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
@@ -173,8 +158,8 @@ espLabel.TextXAlignment = Enum.TextXAlignment.Left
 espLabel.Parent = mainFrame
 
 local espBtn = Instance.new("TextButton")
-espBtn.Size = UDim2.new(0.25, 0, 0, 25)
-espBtn.Position = UDim2.new(0.6, 0, 0, 120)
+espBtn.Size = UDim2.new(0.3, 0, 0, 25)
+espBtn.Position = UDim2.new(0.6, 0, 0, 115)
 espBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
 espBtn.Text = espEnabled and "ON" or "OFF"
 espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -189,40 +174,16 @@ espBtn.MouseButton1Click:Connect(function()
     espLabel.TextColor3 = espEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
     espBtn.Text = espEnabled and "ON" or "OFF"
     espBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    if not espEnabled then ClearESP() end
+    if not espEnabled then
+        ClearESP()
+    end
     UpdateLog("ESP " .. (espEnabled and "ON" or "OFF"))
-end)
-
--- ===== TAB AIMBOT =====
-local aimLabel = Instance.new("TextLabel")
-aimLabel.Size = UDim2.new(0.5, 0, 0, 25)
-aimLabel.Position = UDim2.new(0, 10, 0, 155)
-aimLabel.BackgroundTransparency = 1
-aimLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
-aimLabel.TextColor3 = aimbotEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
-aimLabel.TextScaled = true
-aimLabel.Font = Enum.Font.GothamBold
-aimLabel.TextXAlignment = Enum.TextXAlignment.Left
-aimLabel.Parent = mainFrame
-
-local aimBtn = Instance.new("TextButton")
-aimBtn.Size = UDim2.new(0.25, 0, 0, 25)
-aimBtn.Position = UDim2.new(0.6, 0, 0, 155)
-aimBtn.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-aimBtn.Text = aimbotEnabled and "ON" or "OFF"
-aimBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-aimBtn.TextScaled = true
-aimBtn.Font = Enum.Font.GothamBold
-aimBtn.Parent = mainFrame
-
-aimBtn.MouseButton1Click:Connect(function()
-    ToggleAimbot()
 end)
 
 -- ===== SPEED SLIDER =====
 local speedSliderLabel = Instance.new("TextLabel")
-speedSliderLabel.Size = UDim2.new(0.45, 0, 0, 25)
-speedSliderLabel.Position = UDim2.new(0, 10, 0, 190)
+speedSliderLabel.Size = UDim2.new(0.5, 0, 0, 25)
+speedSliderLabel.Position = UDim2.new(0, 10, 0, 150)
 speedSliderLabel.BackgroundTransparency = 1
 speedSliderLabel.Text = "Speed: " .. currentSpeed
 speedSliderLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
@@ -232,11 +193,11 @@ speedSliderLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedSliderLabel.Parent = mainFrame
 
 local speedSlider = Instance.new("TextBox")
-speedSlider.Size = UDim2.new(0.25, 0, 0, 25)
-speedSlider.Position = UDim2.new(0.6, 0, 0, 190)
+speedSlider.Size = UDim2.new(0.3, 0, 0, 25)
+speedSlider.Position = UDim2.new(0.6, 0, 0, 150)
 speedSlider.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
 speedSlider.BorderSizePixel = 1
-speedSlider.BorderColor3 = Color3.fromRGB(255, 200, 50)
+speedSlider.BorderColor3 = Color3.fromRGB(0, 200, 255)
 speedSlider.Text = tostring(currentSpeed)
 speedSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedSlider.TextScaled = true
@@ -253,11 +214,6 @@ speedSlider.FocusLost:Connect(function(enterPressed)
             CONFIG.WalkSpeed = newSpeed
             speedSlider.Text = tostring(currentSpeed)
             speedSliderLabel.Text = "Speed: " .. currentSpeed
-            if speedHack then
-                local char = GetCharacter()
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then hum.WalkSpeed = currentSpeed end
-            end
             UpdateLog("Speed set to: " .. currentSpeed)
         else
             speedSlider.Text = tostring(currentSpeed)
@@ -265,152 +221,10 @@ speedSlider.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- ===== FOV SLIDER =====
-local fovLabel = Instance.new("TextLabel")
-fovLabel.Size = UDim2.new(0.45, 0, 0, 25)
-fovLabel.Position = UDim2.new(0, 10, 0, 225)
-fovLabel.BackgroundTransparency = 1
-fovLabel.Text = "FOV: " .. CONFIG.AimFOV
-fovLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-fovLabel.TextScaled = true
-fovLabel.Font = Enum.Font.Gotham
-fovLabel.TextXAlignment = Enum.TextXAlignment.Left
-fovLabel.Parent = mainFrame
-
-local fovSlider = Instance.new("TextBox")
-fovSlider.Size = UDim2.new(0.25, 0, 0, 25)
-fovSlider.Position = UDim2.new(0.6, 0, 0, 225)
-fovSlider.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
-fovSlider.BorderSizePixel = 1
-fovSlider.BorderColor3 = Color3.fromRGB(255, 200, 50)
-fovSlider.Text = tostring(CONFIG.AimFOV)
-fovSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-fovSlider.TextScaled = true
-fovSlider.Font = Enum.Font.Gotham
-fovSlider.Parent = mainFrame
-
-fovSlider.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local newFOV = tonumber(fovSlider.Text)
-        if newFOV and newFOV > 0 then
-            CONFIG.AimFOV = newFOV
-            fovLabel.Text = "FOV: " .. newFOV
-            UpdateLog("FOV set to: " .. newFOV)
-        else
-            fovSlider.Text = tostring(CONFIG.AimFOV)
-        end
-    end
-end)
-
--- ===== SMOOTHNESS SLIDER =====
-local smoothLabel = Instance.new("TextLabel")
-smoothLabel.Size = UDim2.new(0.45, 0, 0, 25)
-smoothLabel.Position = UDim2.new(0, 10, 0, 260)
-smoothLabel.BackgroundTransparency = 1
-smoothLabel.Text = "Smooth: " .. string.format("%.2f", CONFIG.AimSmoothness)
-smoothLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-smoothLabel.TextScaled = true
-smoothLabel.Font = Enum.Font.Gotham
-smoothLabel.TextXAlignment = Enum.TextXAlignment.Left
-smoothLabel.Parent = mainFrame
-
-local smoothSlider = Instance.new("TextBox")
-smoothSlider.Size = UDim2.new(0.25, 0, 0, 25)
-smoothSlider.Position = UDim2.new(0.6, 0, 0, 260)
-smoothSlider.BackgroundColor3 = Color3.fromRGB(30, 30, 60)
-smoothSlider.BorderSizePixel = 1
-smoothSlider.BorderColor3 = Color3.fromRGB(255, 200, 50)
-smoothSlider.Text = string.format("%.2f", CONFIG.AimSmoothness)
-smoothSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-smoothSlider.TextScaled = true
-smoothSlider.Font = Enum.Font.Gotham
-smoothSlider.Parent = mainFrame
-
-smoothSlider.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local newSmooth = tonumber(smoothSlider.Text)
-        if newSmooth and newSmooth >= 0 and newSmooth <= 1 then
-            CONFIG.AimSmoothness = newSmooth
-            smoothLabel.Text = "Smooth: " .. string.format("%.2f", newSmooth)
-            UpdateLog("Smoothness set to: " .. newSmooth)
-        else
-            smoothSlider.Text = string.format("%.2f", CONFIG.AimSmoothness)
-        end
-    end
-end)
-
--- ===== AIM PART SELECTOR =====
-local partLabel = Instance.new("TextLabel")
-partLabel.Size = UDim2.new(0.45, 0, 0, 25)
-partLabel.Position = UDim2.new(0, 10, 0, 295)
-partLabel.BackgroundTransparency = 1
-partLabel.Text = "Aim Part: " .. CONFIG.AimPart
-partLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-partLabel.TextScaled = true
-partLabel.Font = Enum.Font.Gotham
-partLabel.TextXAlignment = Enum.TextXAlignment.Left
-partLabel.Parent = mainFrame
-
-local partBtn = Instance.new("TextButton")
-partBtn.Size = UDim2.new(0.25, 0, 0, 25)
-partBtn.Position = UDim2.new(0.6, 0, 0, 295)
-partBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
-partBtn.Text = CONFIG.AimPart
-partBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-partBtn.TextScaled = true
-partBtn.Font = Enum.Font.GothamBold
-partBtn.Parent = mainFrame
-
-local partsList = {"Head", "HumanoidRootPart", "Torso", "UpperTorso", "LowerTorso"}
-local partIndex = 1
-for i, v in ipairs(partsList) do
-    if v == CONFIG.AimPart then partIndex = i break end
-end
-
-partBtn.MouseButton1Click:Connect(function()
-    partIndex = partIndex % #partsList + 1
-    CONFIG.AimPart = partsList[partIndex]
-    partLabel.Text = "Aim Part: " .. CONFIG.AimPart
-    partBtn.Text = CONFIG.AimPart
-    UpdateLog("Aim part changed to: " .. CONFIG.AimPart)
-end)
-
--- ===== SHOW FOV TOGGLE =====
-local showFOVLabel = Instance.new("TextLabel")
-showFOVLabel.Size = UDim2.new(0.45, 0, 0, 25)
-showFOVLabel.Position = UDim2.new(0, 10, 0, 330)
-showFOVLabel.BackgroundTransparency = 1
-showFOVLabel.Text = "Show FOV: " .. (CONFIG.ShowFOV and "ON" or "OFF")
-showFOVLabel.TextColor3 = CONFIG.ShowFOV and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
-showFOVLabel.TextScaled = true
-showFOVLabel.Font = Enum.Font.GothamBold
-showFOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-showFOVLabel.Parent = mainFrame
-
-local showFOVBtn = Instance.new("TextButton")
-showFOVBtn.Size = UDim2.new(0.25, 0, 0, 25)
-showFOVBtn.Position = UDim2.new(0.6, 0, 0, 330)
-showFOVBtn.BackgroundColor3 = CONFIG.ShowFOV and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-showFOVBtn.Text = CONFIG.ShowFOV and "ON" or "OFF"
-showFOVBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-showFOVBtn.TextScaled = true
-showFOVBtn.Font = Enum.Font.GothamBold
-showFOVBtn.Parent = mainFrame
-
-showFOVBtn.MouseButton1Click:Connect(function()
-    CONFIG.ShowFOV = not CONFIG.ShowFOV
-    showFOVLabel.Text = "Show FOV: " .. (CONFIG.ShowFOV and "ON" or "OFF")
-    showFOVLabel.TextColor3 = CONFIG.ShowFOV and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
-    showFOVBtn.Text = CONFIG.ShowFOV and "ON" or "OFF"
-    showFOVBtn.BackgroundColor3 = CONFIG.ShowFOV and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    if not CONFIG.ShowFOV then ClearFOV() end
-    UpdateLog("Show FOV " .. (CONFIG.ShowFOV and "ON" or "OFF"))
-end)
-
--- ===== WALKSPEED DISPLAY =====
+-- ===== WALK SPEED HIỂN THỊ =====
 local walkSpeedLabel = Instance.new("TextLabel")
 walkSpeedLabel.Size = UDim2.new(1, 0, 0, 25)
-walkSpeedLabel.Position = UDim2.new(0, 0, 0, 365)
+walkSpeedLabel.Position = UDim2.new(0, 0, 0, 185)
 walkSpeedLabel.BackgroundTransparency = 1
 walkSpeedLabel.Text = "WalkSpeed: 16 | JumpPower: 50"
 walkSpeedLabel.TextColor3 = Color3.fromRGB(150, 150, 200)
@@ -420,20 +234,36 @@ walkSpeedLabel.Parent = mainFrame
 
 -- ===== HOTKEY INFO =====
 local hotkeyLabel = Instance.new("TextLabel")
-hotkeyLabel.Size = UDim2.new(1, 0, 0, 35)
-hotkeyLabel.Position = UDim2.new(0, 0, 0, 385)
+hotkeyLabel.Size = UDim2.new(1, 0, 0, 55)
+hotkeyLabel.Position = UDim2.new(0, 0, 0, 225)
 hotkeyLabel.BackgroundTransparency = 1
-hotkeyLabel.Text = "F:Fly | G:Speed | Z:ESP | X:Menu | T:Aim | +/-:Speed"
+hotkeyLabel.Text = "F: Fly | G: Speed | Z: ESP | X: Menu\n+/-: Speed Adj (Unlimited) | H: Reset"
 hotkeyLabel.TextColor3 = Color3.fromRGB(150, 150, 200)
 hotkeyLabel.TextScaled = true
 hotkeyLabel.Font = Enum.Font.Code
 hotkeyLabel.Parent = mainFrame
 
--- ========== FUNCTIONS ==========
+-- ========== HÀM TOGGLE MENU ==========
+local function ToggleMenu()
+    menuVisible = not menuVisible
+    CONFIG.MenuVisible = menuVisible
+    mainFrame.Visible = menuVisible
+    toggleBtn.Text = menuVisible and "MENU" or "OPEN"
+    toggleBtn.BackgroundColor3 = menuVisible and Color3.fromRGB(255, 200, 50) or Color3.fromRGB(50, 255, 50)
+    UpdateLog("Menu " .. (menuVisible and "shown" or "hidden"))
+end
+
+-- Nút toggle menu
+toggleBtn.MouseButton1Click:Connect(function()
+    ToggleMenu()
+end)
+
+-- ========== LOGGING ==========
 local function UpdateLog(msg)
     print("[Hiendz-Hub] " .. msg)
 end
 
+-- ========== FLY FUNCTIONS ==========
 local function GetCharacter()
     local char = player.Character
     if not char or not char.Parent then
@@ -442,50 +272,77 @@ local function GetCharacter()
     return char
 end
 
--- ===== FLY =====
-function ToggleFly()
+local function SetupFly()
     character = GetCharacter()
     humanoid = character:FindFirstChild("Humanoid")
     rootPart = character:FindFirstChild("HumanoidRootPart")
     
+    if not humanoid or not rootPart then
+        UpdateLog("Cannot find Humanoid or HumanoidRootPart")
+        return false
+    end
+    
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "FlyBV"
+    bodyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+    
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.Name = "FlyBG"
+    bodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+    bodyGyro.Parent = rootPart
+    bodyGyro.CFrame = rootPart.CFrame
+    
+    humanoid.PlatformStand = true
+    humanoid.AutoRotate = false
+    
+    UpdateLog("Fly setup complete - Unlimited speed")
+    return true
+end
+
+local function CleanupFly()
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+        bodyVelocity = nil
+    end
+    if bodyGyro then
+        bodyGyro:Destroy()
+        bodyGyro = nil
+    end
+    if humanoid then
+        humanoid.PlatformStand = false
+        humanoid.AutoRotate = true
+    end
+    UpdateLog("Fly cleanup complete")
+end
+
+function ToggleFly()
     if flying then
         flying = false
         flyLabel.Text = "Fly: OFF"
         flyLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
         flyBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
-        if bodyVelocity then bodyVelocity:Destroy(); bodyVelocity = nil end
-        if bodyGyro then bodyGyro:Destroy(); bodyGyro = nil end
-        if humanoid then humanoid.PlatformStand = false; humanoid.AutoRotate = true end
+        CleanupFly()
         UpdateLog("Fly disabled")
     else
-        if not humanoid or not rootPart then
-            UpdateLog("Cannot find Humanoid or RootPart")
-            return
-        end
         flying = true
         flyLabel.Text = "Fly: ON"
         flyLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
         flyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        
-        bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.Name = "FlyBV"
-        bodyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
-        
-        bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.Name = "FlyBG"
-        bodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
-        bodyGyro.Parent = rootPart
-        bodyGyro.CFrame = rootPart.CFrame
-        
-        humanoid.PlatformStand = true
-        humanoid.AutoRotate = false
-        UpdateLog("Fly enabled - Speed: " .. currentSpeed)
+        if SetupFly() then
+            UpdateLog("Fly enabled - Speed: " .. currentSpeed .. " (Unlimited)")
+        else
+            flying = false
+            flyLabel.Text = "Fly: OFF"
+            flyLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            flyBtn.BackgroundColor3 = Color3.fromRGB(30, 150, 255)
+            UpdateLog("Failed to enable fly")
+        end
     end
 end
 
--- ===== SPEED HACK =====
+-- ========== SPEED HACK ==========
 function ToggleSpeedHack()
     local char = GetCharacter()
     local hum = char:FindFirstChild("Humanoid")
@@ -506,17 +363,86 @@ function ToggleSpeedHack()
         speedLabel.Text = "Speed Hack: ON"
         speedLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
         speedBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        UpdateLog("Speed hack enabled - WalkSpeed: " .. CONFIG.WalkSpeed)
+        UpdateLog("Speed hack enabled - WalkSpeed: " .. CONFIG.WalkSpeed .. " (Unlimited) JumpPower: " .. CONFIG.JumpPower)
     end
 end
 
--- ===== ESP =====
-function CreateESP(targetPlr)
-    if not espEnabled or targetPlr == player then return end
-    local char = targetPlr.Character
-    if not char or not char.Parent then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChild("Humanoid")
+-- ========== RESET SPEED ==========
+local function ResetSpeed()
+    currentSpeed = CONFIG.DefaultSpeed
+    CONFIG.FlySpeed = currentSpeed
+    CONFIG.WalkSpeed = currentSpeed
+    speedSlider.Text = tostring(currentSpeed)
+    speedSliderLabel.Text = "Speed: " .. currentSpeed
+    if speedHack then
+        local char = GetCharacter()
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then
+            hum.WalkSpeed = currentSpeed
+        end
+    end
+    UpdateLog("Speed reset to: " .. currentSpeed)
+end
+
+-- ========== UPDATE FLY ==========
+local function UpdateFly()
+    if not flying then return end
+    if not rootPart then
+        character = GetCharacter()
+        rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end
+    end
+    if not bodyVelocity then return end
+    
+    local cameraCFrame = camera.CFrame
+    local forward = cameraCFrame.LookVector
+    local right = cameraCFrame.RightVector
+    local up = cameraCFrame.UpVector
+    
+    local moveDirection = Vector3.new(0, 0, 0)
+    
+    if userInputService:IsKeyDown(Enum.KeyCode.W) then
+        moveDirection = moveDirection + forward
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.S) then
+        moveDirection = moveDirection - forward
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.A) then
+        moveDirection = moveDirection - right
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.D) then
+        moveDirection = moveDirection + right
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.Space) then
+        moveDirection = moveDirection + up
+    end
+    if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        moveDirection = moveDirection - up
+    end
+    
+    if moveDirection.Magnitude > 0 then
+        moveDirection = moveDirection.Unit * currentSpeed
+    else
+        moveDirection = Vector3.new(0, 0, 0)
+    end
+    
+    bodyVelocity.Velocity = moveDirection
+    
+    if bodyGyro then
+        bodyGyro.CFrame = CFrame.new(rootPart.Position, rootPart.Position + cameraCFrame.LookVector)
+    end
+end
+
+-- ========== ESP SYSTEM ==========
+local function CreateESP(playerTarget)
+    if not espEnabled then return end
+    if playerTarget == player then return end
+    
+    local characterTarget = playerTarget.Character
+    if not characterTarget then return end
+    
+    local hrp = characterTarget:FindFirstChild("HumanoidRootPart")
+    local hum = characterTarget:FindFirstChild("Humanoid")
     if not hrp or not hum then return end
     
     if not espFolder then
@@ -525,29 +451,31 @@ function CreateESP(targetPlr)
         espFolder.Parent = screenGui
     end
     
-    local existing = espFolder:FindFirstChild(targetPlr.Name)
-    if existing then existing:Destroy() end
+    local existing = espFolder:FindFirstChild(playerTarget.Name)
+    if existing then
+        existing:Destroy()
+    end
     
-    local frame = Instance.new("Frame")
-    frame.Name = targetPlr.Name
-    frame.Size = UDim2.new(0, 6, 0, 60)
-    frame.BackgroundColor3 = CONFIG.ESPColor
-    frame.BackgroundTransparency = 0.6
-    frame.BorderSizePixel = 1
-    frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
-    frame.Parent = espFolder
+    local espFrame = Instance.new("Frame")
+    espFrame.Name = playerTarget.Name
+    espFrame.Size = UDim2.new(0, 6, 0, 60)
+    espFrame.BackgroundColor3 = CONFIG.ESPColor
+    espFrame.BackgroundTransparency = 0.6
+    espFrame.BorderSizePixel = 1
+    espFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    espFrame.Parent = espFolder
     
     local nameLabel = Instance.new("TextLabel")
     nameLabel.Size = UDim2.new(0, 120, 0, 16)
     nameLabel.Position = UDim2.new(0.5, -60, 0, -18)
     nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = targetPlr.Name
+    nameLabel.Text = playerTarget.Name
     nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     nameLabel.TextScaled = true
     nameLabel.Font = Enum.Font.GothamBold
     nameLabel.TextStrokeTransparency = 0.5
     nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    nameLabel.Parent = frame
+    nameLabel.Parent = espFrame
     
     local healthBar = Instance.new("Frame")
     healthBar.Size = UDim2.new(0, 60, 0, 8)
@@ -555,7 +483,7 @@ function CreateESP(targetPlr)
     healthBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     healthBar.BorderSizePixel = 1
     healthBar.BorderColor3 = Color3.fromRGB(0, 0, 0)
-    healthBar.Parent = frame
+    healthBar.Parent = espFrame
     
     local healthFill = Instance.new("Frame")
     healthFill.Size = UDim2.new(1, 0, 1, 0)
@@ -573,25 +501,41 @@ function CreateESP(targetPlr)
     distLabel.Font = Enum.Font.Code
     distLabel.TextStrokeTransparency = 0.5
     distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    distLabel.Parent = frame
+    distLabel.Parent = espFrame
     
-    espObjects[targetPlr] = {
-        Frame = frame,
+    local line = Instance.new("Frame")
+    line.Name = "Line"
+    line.Size = UDim2.new(0, 2, 0, 50)
+    line.BackgroundColor3 = CONFIG.ESPColor
+    line.BackgroundTransparency = 0.5
+    line.BorderSizePixel = 0
+    line.Parent = espFrame
+    
+    espObjects[playerTarget] = {
+        Frame = espFrame,
+        NameLabel = nameLabel,
         HealthBar = healthFill,
         DistLabel = distLabel,
-        Character = char
+        Line = line,
+        Character = characterTarget
     }
 end
 
-function UpdateESP()
-    if not espEnabled then ClearESP(); return end
+local function UpdateESP()
+    if not espEnabled then
+        ClearESP()
+        return
+    end
+    
     local localChar = GetCharacter()
     local localRoot = localChar:FindFirstChild("HumanoidRootPart")
     if not localRoot then return end
     
     for target, data in pairs(espObjects) do
         if not target or not target.Character or not target.Character.Parent then
-            if data.Frame then data.Frame:Destroy() end
+            if data.Frame then
+                data.Frame:Destroy()
+            end
             espObjects[target] = nil
         end
     end
@@ -603,13 +547,17 @@ function UpdateESP()
                 local hrp = char:FindFirstChild("HumanoidRootPart")
                 local hum = char:FindFirstChild("Humanoid")
                 if hrp and hum then
-                    if not espObjects[target] then CreateESP(target) end
+                    if not espObjects[target] then
+                        CreateESP(target)
+                    end
+                    
                     local data = espObjects[target]
                     if data and data.Frame then
                         local pos, onScreen = camera:WorldToScreenPoint(hrp.Position)
                         if onScreen then
                             data.Frame.Visible = true
                             data.Frame.Position = UDim2.new(0, pos.X - 3, 0, pos.Y - 30)
+                            
                             local dist = (localRoot.Position - hrp.Position).Magnitude
                             if CONFIG.ShowDistance and dist < CONFIG.ESPDistance then
                                 data.DistLabel.Text = math.floor(dist) .. "m"
@@ -617,10 +565,25 @@ function UpdateESP()
                             else
                                 data.DistLabel.Visible = false
                             end
-                            local hp = hum.Health / hum.MaxHealth
-                            data.HealthBar.Size = UDim2.new(hp, 0, 1, 0)
-                            data.HealthBar.BackgroundColor3 = hp > 0.6 and Color3.fromRGB(0, 255, 0) or hp > 0.3 and Color3.fromRGB(255, 255, 0) or Color3.fromRGB(255, 0, 0)
-                            data.Frame.BackgroundColor3 = (target.Team and player.Team and target.Team == player.Team) and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(255, 0, 0)
+                            
+                            local health = hum.Health
+                            local maxHealth = hum.MaxHealth
+                            local healthPercent = health / maxHealth
+                            data.HealthBar.Size = UDim2.new(healthPercent, 0, 1, 0)
+                            
+                            if healthPercent > 0.6 then
+                                data.HealthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                            elseif healthPercent > 0.3 then
+                                data.HealthBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+                            else
+                                data.HealthBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                            end
+                            
+                            if target.Team and player.Team and target.Team == player.Team then
+                                data.Frame.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+                            else
+                                data.Frame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                            end
                         else
                             data.Frame.Visible = false
                         end
@@ -631,76 +594,149 @@ function UpdateESP()
     end
 end
 
-function ClearESP()
-    if espFolder then espFolder:Destroy(); espFolder = nil end
+local function ClearESP()
+    if espFolder then
+        espFolder:Destroy()
+        espFolder = nil
+    end
     espObjects = {}
 end
 
--- ===== AIMBOT =====
-function ToggleAimbot()
-    aimbotEnabled = not aimbotEnabled
-    CONFIG.AimEnabled = aimbotEnabled
-    aimLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF")
-    aimLabel.TextColor3 = aimbotEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
-    aimBtn.Text = aimbotEnabled and "ON" or "OFF"
-    aimBtn.BackgroundColor3 = aimbotEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
-    if not aimbotEnabled then currentTarget = nil end
-    UpdateLog("Aimbot " .. (aimbotEnabled and "ON" or "OFF"))
-end
-
-function GetNearestTarget()
-    local char = GetCharacter()
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    local camPos = camera.CFrame.Position
-    local camDir = camera.CFrame.LookVector
-    local nearest = nil
-    local nearestAngle = CONFIG.AimFOV
+-- ========== PHÍM TẮT ==========
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     
-    for _, target in pairs(players:GetPlayers()) do
-        if target ~= player then
-            local tChar = target.Character
-            if tChar and tChar.Parent then
-                if CONFIG.TeamCheck and target.Team and player.Team and target.Team == player.Team then continue end
-                local tPart = tChar:FindFirstChild(CONFIG.AimPart) or tChar:FindFirstChild("HumanoidRootPart")
-                local tHum = tChar:FindFirstChild("Humanoid")
-                if tPart and tHum and tHum.Health > 0 then
-                    local dir = (tPart.Position - camPos).Unit
-                    local angle = math.deg(math.acos(math.clamp(camDir:Dot(dir), -1, 1)))
-                    if angle < nearestAngle then
-                        nearestAngle = angle
-                        nearest = target
-                    end
-                end
+    if input.KeyCode == Enum.KeyCode.F then
+        ToggleFly()
+    end
+    
+    if input.KeyCode == Enum.KeyCode.G then
+        ToggleSpeedHack()
+    end
+    
+    if input.KeyCode == Enum.KeyCode.Z then
+        espEnabled = not espEnabled
+        CONFIG.ESPEnabled = espEnabled
+        espLabel.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+        espLabel.TextColor3 = espEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+        espBtn.Text = espEnabled and "ON" or "OFF"
+        espBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+        if not espEnabled then
+            ClearESP()
+        end
+        UpdateLog("ESP " .. (espEnabled and "ON" or "OFF"))
+    end
+    
+    if input.KeyCode == Enum.KeyCode.X then
+        ToggleMenu()
+    end
+    
+    if input.KeyCode == Enum.KeyCode.H then
+        ResetSpeed()
+    end
+    
+    -- Điều chỉnh tốc độ không giới hạn
+    if input.KeyCode == Enum.KeyCode.Equals or input.KeyCode == Enum.KeyCode.Plus then
+        currentSpeed = currentSpeed + CONFIG.StepSize
+        CONFIG.FlySpeed = currentSpeed
+        CONFIG.WalkSpeed = currentSpeed
+        speedSlider.Text = tostring(currentSpeed)
+        speedSliderLabel.Text = "Speed: " .. currentSpeed
+        if speedHack then
+            local char = GetCharacter()
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum.WalkSpeed = currentSpeed
             end
         end
+        UpdateLog("Speed increased to: " .. currentSpeed .. " (Unlimited)")
     end
-    return nearest
-end
-
-function UpdateAimbot()
-    if not aimbotEnabled then return end
-    local char = GetCharacter()
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
     
-    if CONFIG.LockTarget and currentTarget and currentTarget.Character and currentTarget.Character.Parent then
-        local tPart = currentTarget.Character:FindFirstChild(CONFIG.AimPart) or currentTarget.Character:FindFirstChild("HumanoidRootPart")
-        local tHum = currentTarget.Character:FindFirstChild("Humanoid")
-        if tPart and tHum and tHum.Health > 0 then
-            -- Keep targeting
-        else
-            currentTarget = nil
+    if input.KeyCode == Enum.KeyCode.Minus then
+        currentSpeed = math.max(CONFIG.MinSpeed, currentSpeed - CONFIG.StepSize)
+        CONFIG.FlySpeed = currentSpeed
+        CONFIG.WalkSpeed = currentSpeed
+        speedSlider.Text = tostring(currentSpeed)
+        speedSliderLabel.Text = "Speed: " .. currentSpeed
+        if speedHack then
+            local char = GetCharacter()
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum.WalkSpeed = currentSpeed
+            end
         end
+        UpdateLog("Speed decreased to: " .. currentSpeed)
+    end
+end)
+
+-- ========== LOOP CHÍNH ==========
+runService.RenderStepped:Connect(function()
+    UpdateFly()
+    UpdateESP()
+    
+    local char = GetCharacter()
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then
+        walkSpeedLabel.Text = "WalkSpeed: " .. math.floor(hum.WalkSpeed) .. " | JumpPower: " .. math.floor(hum.JumpPower)
+    end
+end)
+
+-- ========== XỬ LÝ CHARACTER CHẾT ==========
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = character:FindFirstChild("Humanoid")
+    rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if speedHack and humanoid then
+        humanoid.WalkSpeed = CONFIG.WalkSpeed
+        humanoid.JumpPower = CONFIG.JumpPower
     end
     
-    if not currentTarget then
-        currentTarget = GetNearestTarget()
+    if flying then
+        wait(0.5)
+        SetupFly()
     end
-    
-    if currentTarget then
-        local tChar = currentTarget.Character
-        if tChar and tChar.Parent then
-            local tPart = tChar:FindFirstChild(CONFIG.AimPart) or tChar:FindFirstChild("HumanoidRootPart")
-            if tPart then
-                local
+end)
+
+-- ========== XỬ LÝ PLAYER RỜI GAME ==========
+players.PlayerRemoving:Connect(function(plr)
+    if espObjects[plr] then
+        if espObjects[plr].Frame then
+            espObjects[plr].Frame:Destroy()
+        end
+        espObjects[plr] = nil
+    end
+end)
+
+-- ========== KHỞI TẠO ==========
+UpdateLog("Hiendz-Hub loaded successfully! (Unlimited Speed)")
+UpdateLog("F: Fly | G: Speed Hack | Z: ESP | X: Toggle Menu | H: Reset Speed")
+UpdateLog("+/-: Adjust speed (No limit)")
+
+print("[Hiendz-Hub] Loaded successfully! Make by Hiendz - Unlimited Speed")
+
+-- ========== KÉO THẢ GUI ==========
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+userInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
