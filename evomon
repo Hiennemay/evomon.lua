@@ -1,6 +1,6 @@
 -- EVOMON ROBLOX - FIX SCRIPT NOT WORKING
--- Causes: Wrong remote event names, workspace changes, or loop blocked
--- Fix: Auto-detect, detailed debug, multi-method force attack
+-- Nguyên nhân: Evomon không phải là monster, chúng là các model con trong workspace
+-- Fix: Tìm kiếm Evomon theo đúng cấu trúc của game
 
 local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -15,11 +15,11 @@ end
 
 DebugLog("Script started")
 
--- ========== DELETE OLD GUI ==========
+-- ========== XÓA GUI CŨ ==========
 local oldGui = playerGui:FindFirstChild("EvomonMenu")
 if oldGui then oldGui:Destroy() end
 
--- ========== CREATE GUI ==========
+-- ========== TẠO GUI ==========
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "EvomonMenu"
 screenGui.ResetOnSpawn = false
@@ -154,7 +154,7 @@ startBtn.BorderSizePixel = 2
 startBtn.BorderColor3 = Color3.fromRGB(255, 200, 50)
 startBtn.Parent = contentFrame
 
--- ========== FIND REMOTE EVENTS ==========
+-- ========== TÌM REMOTE EVENTS ==========
 local function FindRemoteEvents()
     local found = {}
     for _, service in pairs({replicatedStorage, game:GetService("ReplicatedFirst")}) do
@@ -170,32 +170,62 @@ end
 local remoteNames = FindRemoteEvents()
 UpdateLog("Found remotes: " .. table.concat(remoteNames, ", "))
 
--- ========== FIND MONSTER CONTAINER ==========
-local function FindMonsterContainer()
-    local possible = {"Monsters", "NPCs", "Mobs", "Creatures", "Enemies", "Wild"}
+-- ========== TÌM EVOMON (KHÔNG PHẢI MONSTER) ==========
+local function FindEvomonContainer()
+    -- Evomon thường nằm trực tiếp trong workspace hoặc trong folder "Evomons"
+    local possible = {"Evomons", "Evomon", "WildEvomons", "Pokemons", "Creatures"}
+    
     for _, name in ipairs(possible) do
         local container = workspace:FindFirstChild(name)
         if container then
-            UpdateLog("Found monster container: " .. name)
+            UpdateLog("Found Evomon container: " .. name)
             return container
         end
     end
-    -- Scan entire workspace
+    
+    -- Duyệt toàn bộ workspace tìm model có chứa "Evomon" hoặc có Humanoid
+    local evomonList = {}
     for _, child in pairs(workspace:GetChildren()) do
-        if child:IsA("Model") and child:FindFirstChild("Humanoid") then
-            local container = child.Parent
-            if container and container ~= workspace then
-                UpdateLog("Found monster parent: " .. container.Name)
-                return container
+        if child:IsA("Model") then
+            local name = child.Name:lower()
+            if string.find(name, "evomon") or string.find(name, "pkm") or string.find(name, "wild") then
+                local humanoid = child:FindFirstChild("Humanoid")
+                if humanoid then
+                    table.insert(evomonList, child)
+                    UpdateLog("Found Evomon: " .. child.Name)
+                end
             end
         end
     end
+    
+    -- Nếu tìm thấy evomon riêng lẻ, trả về workspace (duyệt toàn bộ)
+    if #evomonList > 0 then
+        UpdateLog("Found " .. #evomonList .. " Evomons in workspace")
+        return workspace
+    end
+    
+    -- Duyệt tất cả folder con trong workspace
+    for _, child in pairs(workspace:GetChildren()) do
+        if child:IsA("Folder") or child:IsA("Model") then
+            for _, subChild in pairs(child:GetChildren()) do
+                if subChild:IsA("Model") then
+                    local humanoid = subChild:FindFirstChild("Humanoid")
+                    if humanoid then
+                        UpdateLog("Found Evomon in folder: " .. child.Name .. " -> " .. subChild.Name)
+                        return child
+                    end
+                end
+            end
+        end
+    end
+    
     return nil
 end
 
-local monsterContainer = FindMonsterContainer()
+local evomonContainer = FindEvomonContainer()
+UpdateLog("Evomon container set to: " .. (evomonContainer and evomonContainer.Name or "nil"))
 
--- ========== GET CHARACTER ==========
+-- ========== LẤY CHARACTER ==========
 local function GetCharacter()
     local char = player.Character
     if not char or not char.Parent then
@@ -219,72 +249,94 @@ local function TeleportTo(position)
     return true
 end
 
--- ========== GET NEAREST MONSTER (IMPROVED) ==========
-local function GetNearestMonster()
+-- ========== LẤY EVOMON GẦN NHẤT (CHỈNH SỬA) ==========
+local function GetNearestEvomon()
     local char = GetCharacter()
     local rootPart = char:FindFirstChild("HumanoidRootPart")
     if not rootPart then return nil end
     
-    local container = monsterContainer
+    local container = evomonContainer
     if not container then return nil end
     
     local nearest = nil
     local minDist = math.huge
+    local searchRadius = 150 -- Tăng bán kính tìm kiếm
     
-    for _, child in pairs(container:GetChildren()) do
-        if child:IsA("Model") then
-            local humanoid = child:FindFirstChild("Humanoid")
-            local hrp = child:FindFirstChild("HumanoidRootPart")
-            if humanoid and hrp and humanoid.Health > 0 then
+    local function CheckModel(model)
+        if not model:IsA("Model") then return end
+        local humanoid = model:FindFirstChild("Humanoid")
+        local hrp = model:FindFirstChild("HumanoidRootPart")
+        if humanoid and hrp and humanoid.Health > 0 then
+            -- Kiểm tra xem có phải là Evomon không (tên chứa từ khóa hoặc có thuộc tính đặc biệt)
+            local name = model.Name:lower()
+            local isEvomon = string.find(name, "evomon") or 
+                           string.find(name, "pkm") or 
+                           string.find(name, "wild") or
+                           string.find(name, "monster") or
+                           string.find(name, "creature") or
+                           (humanoid:FindFirstChild("IsEvomon") and humanoid.IsEvomon.Value == true)
+            
+            if isEvomon or true then -- Nếu không xác định được, vẫn coi là evomon
                 local dist = (rootPart.Position - hrp.Position).Magnitude
-                if dist < minDist and dist < 80 then
-                    nearest = child
+                if dist < minDist and dist < searchRadius then
+                    nearest = model
                     minDist = dist
                 end
             end
         end
     end
     
-    if not nearest then
-        -- Scan entire workspace
+    -- Duyệt trong container
+    if container == workspace then
+        -- Duyệt toàn bộ workspace
         for _, child in pairs(workspace:GetChildren()) do
-            if child:IsA("Model") and child ~= char then
-                local humanoid = child:FindFirstChild("Humanoid")
-                local hrp = child:FindFirstChild("HumanoidRootPart")
-                if humanoid and hrp and humanoid.Health > 0 then
-                    local dist = (rootPart.Position - hrp.Position).Magnitude
-                    if dist < minDist and dist < 80 then
-                        nearest = child
-                        minDist = dist
-                    end
+            CheckModel(child)
+        end
+    else
+        -- Duyệt trong container cụ thể
+        for _, child in pairs(container:GetChildren()) do
+            CheckModel(child)
+        end
+    end
+    
+    -- Nếu không tìm thấy, tìm kiếm sâu hơn trong các folder con
+    if not nearest then
+        for _, folder in pairs(workspace:GetChildren()) do
+            if folder:IsA("Folder") then
+                for _, child in pairs(folder:GetChildren()) do
+                    CheckModel(child)
                 end
             end
         end
     end
     
+    if nearest then
+        UpdateLog("Found Evomon: " .. nearest.Name .. " at distance " .. math.floor(minDist))
+    end
+    
     return nearest
 end
 
--- ========== ATTACK USING MULTIPLE METHODS ==========
-local function AttackMonster(monster)
-    if not monster then return false end
-    local hrp = monster:FindFirstChild("HumanoidRootPart")
+-- ========== TẤN CÔNG EVOMON (CHỈNH SỬA) ==========
+local function AttackEvomon(evomon)
+    if not evomon then return false end
+    local hrp = evomon:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
     
     local char = GetCharacter()
     local rootPart = char:FindFirstChild("HumanoidRootPart")
     if not rootPart then return false end
     
-    -- Teleport closer
-    if CONFIG.AutoTeleport and (rootPart.Position - hrp.Position).Magnitude > 120 then
+    -- Teleport đến gần
+    if CONFIG.AutoTeleport and (rootPart.Position - hrp.Position).Magnitude > 100 then
         TeleportTo(hrp.Position + Vector3.new(0, 3, 0))
         wait(0.2)
     end
     
-    -- Face monster
-    rootPart.CFrame = CFrame.new(rootPart.Position, hrp.Position)
+    -- Quay mặt
+    rootPart.CFACE = CFrame.new(rootPart.Position, hrp.Position)
     
-    -- Method 1: Mouse click simulation
+    -- Cách 1: Simulation click chuột
     local mouse = player:GetMouse()
     if mouse then
         mouse.Button1Down:Fire()
@@ -293,23 +345,26 @@ local function AttackMonster(monster)
         UpdateLog("Attack via mouse click")
     end
     
-    -- Method 2: RemoteEvent call
+    -- Cách 2: Gọi RemoteEvent (tên thường là Attack, Click, hoặc tương tự)
     local attackRemote = replicatedStorage:FindFirstChild("AttackEvent") or 
                          replicatedStorage:FindFirstChild("Attack") or
-                         replicatedStorage:FindFirstChild("Combat")
+                         replicatedStorage:FindFirstChild("Combat") or
+                         replicatedStorage:FindFirstChild("Click") or
+                         replicatedStorage:FindFirstChild("Hit")
+    
     if attackRemote then
-        attackRemote:FireServer(monster)
+        attackRemote:FireServer(evomon)
         UpdateLog("Attack via remote: " .. attackRemote.Name)
     end
     
-    -- Method 3: Tool activation
+    -- Cách 3: Gửi sự kiện bằng tool
     local tool = char:FindFirstChildOfClass("Tool")
     if tool then
         tool:Activate()
         UpdateLog("Attack via tool: " .. tool.Name)
     end
     
-    -- Method 4: Key press (Q or E)
+    -- Cách 4: Nhấn phím Q hoặc E
     userInputService:SetKeyDown(Enum.KeyCode.Q)
     wait(0.05)
     userInputService:SetKeyUp(Enum.KeyCode.Q)
@@ -318,49 +373,53 @@ local function AttackMonster(monster)
     return true
 end
 
--- ========== THROW POKEBALL ==========
-local function ThrowPokeball(monster)
-    if not monster then return false end
-    local hrp = monster:FindFirstChild("HumanoidRootPart")
+-- ========== NÉM BALL BẮT EVOMON ==========
+local function ThrowBall(evomon)
+    if not evomon then return false end
+    local hrp = evomon:FindFirstChild("HumanoidRootPart")
     if not hrp then return false end
     
     local char = GetCharacter()
     
-    -- Find Pokeball
-    local pokeball = player.Backpack:FindFirstChild("Pokeball") or 
-                     player.Backpack:FindFirstChild("PokeBall") or
-                     char:FindFirstChild("Pokeball")
+    -- Tìm Ball (có thể là Pokeball, Evoball, CaptureBall)
+    local ball = player.Backpack:FindFirstChild("Pokeball") or 
+                 player.Backpack:FindFirstChild("PokeBall") or
+                 player.Backpack:FindFirstChild("Evoball") or
+                 player.Backpack:FindFirstChild("CaptureBall") or
+                 char:FindFirstChild("Pokeball") or
+                 char:FindFirstChild("Evoball")
     
-    if not pokeball then
-        UpdateLog("No Pokeball found")
+    if not ball then
+        UpdateLog("No ball found")
         return false
     end
     
     -- Equip
-    if pokeball.Parent ~= char then
-        pokeball.Parent = char
+    if ball.Parent ~= char then
+        ball.Parent = char
         wait(0.1)
     end
     
-    -- Use
-    local remote = pokeball:FindFirstChild("Activate") or 
-                   pokeball:FindFirstChild("RemoteEvent") or
-                   pokeball:FindFirstChild("Use")
+    -- Sử dụng
+    local remote = ball:FindFirstChild("Activate") or 
+                   ball:FindFirstChild("RemoteEvent") or
+                   ball:FindFirstChild("Use") or
+                   ball:FindFirstChild("Throw")
     
     if remote then
         if remote:IsA("RemoteEvent") then
-            remote:FireServer(hrp.Position, monster)
+            remote:FireServer(hrp.Position, evomon)
         else
             remote:Fire()
         end
-        UpdateLog("Pokeball thrown")
+        UpdateLog("Ball thrown at " .. evomon.Name)
     end
     
     wait(1)
     return true
 end
 
--- ========== AUTO HEAL ==========
+-- ========== TỰ HỒI MÁU ==========
 local function AutoHeal()
     local char = GetCharacter()
     local humanoid = char:FindFirstChild("Humanoid")
@@ -398,18 +457,18 @@ local function AutoHeal()
     end
 end
 
--- ========== MAIN LOOP (IMPROVED) ==========
+-- ========== VÒNG LẶP CHÍNH ==========
 local isRunning = false
 local loopCoroutine = nil
 local frameCounter = 0
 
 local function MainLoop()
-    UpdateLog("Main loop started")
+    UpdateLog("Main loop started - targeting Evomons")
     while isRunning do
         wait(0.05)
         frameCounter = frameCounter + 1
         
-        -- Every 20 frames (~1 second) log status
+        -- Mỗi 20 frames (~1 giây) log status
         if frameCounter % 20 == 0 then
             local char = GetCharacter()
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -426,25 +485,25 @@ local function MainLoop()
         
         -- Auto Farm
         if CONFIG.AutoFarm then
-            local monster = GetNearestMonster()
-            if monster then
-                local humanoid = monster:FindFirstChild("Humanoid")
-                local hrp = monster:FindFirstChild("HumanoidRootPart")
+            local evomon = GetNearestEvomon()
+            if evomon then
+                local humanoid = evomon:FindFirstChild("Humanoid")
+                local hrp = evomon:FindFirstChild("HumanoidRootPart")
                 if humanoid and hrp then
                     local hp = humanoid.Health
                     local maxHp = humanoid.MaxHealth
                     local hpPercent = (hp / maxHp) * 100
                     
                     if CONFIG.AutoCatch and hpPercent < 20 then
-                        UpdateLog("Catching monster: " .. monster.Name)
-                        ThrowPokeball(monster)
+                        UpdateLog("Catching Evomon: " .. evomon.Name)
+                        ThrowBall(evomon)
                     else
-                        UpdateLog("Attacking: " .. monster.Name .. " (HP: " .. math.floor(hpPercent) .. "%)")
-                        AttackMonster(monster)
+                        UpdateLog("Attacking: " .. evomon.Name .. " (HP: " .. math.floor(hpPercent) .. "%)")
+                        AttackEvomon(evomon)
                     end
                 end
             else
-                UpdateLog("No monster found, moving to spawn")
+                UpdateLog("No Evomon found nearby, moving to spawn")
                 local spawnPoint = workspace:FindFirstChild("SpawnLocation")
                 if spawnPoint and CONFIG.AutoTeleport then
                     TeleportTo(spawnPoint.Position + Vector3.new(0, 5, 0))
@@ -466,7 +525,7 @@ startBtn.MouseButton1Click:Connect(function()
         isRunning = true
         startBtn.Text = "STOP SCRIPT"
         startBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        UpdateLog("Script started")
+        UpdateLog("Script started - looking for Evomons")
         DebugLog("Script started")
         if loopCoroutine then
             loopCoroutine = nil
@@ -510,5 +569,5 @@ userInputService.InputChanged:Connect(function(input)
 end)
 
 -- ========== SUCCESS LOG ==========
-UpdateLog("Menu loaded successfully!")
+UpdateLog("Menu loaded successfully! Press START to find Evomons")
 DebugLog("Menu loaded successfully")
