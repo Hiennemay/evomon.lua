@@ -1,4 +1,5 @@
 -- FLY SCRIPT - CÓ THỂ TÙY CHỈNH TỐC ĐỘ
+-- Make by Hiền
 -- Dành cho DeltaX VNG
 -- Phím tắt: F để bật/tắt Fly, WASD để di chuyển, Space lên, Shift xuống
 
@@ -57,7 +58,7 @@ title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
 title.BorderSizePixel = 1
 title.BorderColor3 = Color3.fromRGB(0, 200, 255)
-title.Text = "FLY CONTROL"
+title.Text = "FLY CONTROL - Make by Hiền"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
@@ -174,7 +175,7 @@ end)
 
 -- ========== LOGGING ==========
 local function UpdateLog(msg)
-    print("[FlyScript] " .. msg)
+    print("[FlyScript - Make by Hiền] " .. msg)
 end
 
 -- ========== HÀM FLY ==========
@@ -388,4 +389,4 @@ userInputService.InputChanged:Connect(function(input)
     end
 end)
 
-print("[DeltaX] Fly script loaded successfully!")
+print("[DeltaX] Fly script by Hiền loaded successfully!")
